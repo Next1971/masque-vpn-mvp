@@ -1,4 +1,4 @@
-module github.com/zavodovskii/masque-b2
+module github.com/Next1971/masque-vpn-mvp/windows
 
 go 1.25.5
 
