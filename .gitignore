@@ -1,0 +1,55 @@
+# Secrets and env files
+.env
+.env.*
+*.env
+*.key
+*.pem
+*.p12
+*.jks
+*.keystore
+*.mobileconfig
+
+# Certificates and credentials
+cert/
+certs/
+secrets/
+private/
+credentials/
+*.crt
+*.csr
+*.ovpn
+
+# Logs
+*.log
+logs/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Build artifacts
+dist/
+build/
+out/
+bin/
+obj/
+*.apk
+*.aab
+*.apks
+*.exe
+*.msi
+
+# Android
+.gradle/
+local.properties
+captures/
+*.iml
+
+# Go / server temp
+tmp/
+*.tmp
+
+# Node
+node_modules/
