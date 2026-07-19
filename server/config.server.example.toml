@@ -1,0 +1,20 @@
+# Example MASQUE server config (sanitized)
+# Private keys and real infrastructure values are NOT stored here.
+
+[server]
+bind = "0.0.0.0:4433"
+server_name = "vpn.example.com"
+
+[tls]
+cert = "/opt/masque/certs/server.crt"
+key = "/opt/masque/certs/server.key"
+client_ca = ""
+
+[tun]
+name = "masque0"
+mtu = 1400
+
+[network]
+tun_addr = "10.8.0.1/24"
+pool_cidr = "10.8.0.0/24"
+route = "0.0.0.0/0"
