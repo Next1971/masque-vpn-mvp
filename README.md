@@ -1,6 +1,6 @@
 # Masque VPN MVP
 
-Experimental MASQUE-based VPN MVP for Android, Windows and server deployment.
+MASQUE VPN MVP is an experimental end‑to‑end MASQUE‑based VPN prototype: Android client, Windows client and server. It uses QUIC + HTTP/3 CONNECT‑IP (RFC 9484) with mutual TLS and a Wintun adapter on Windows. This repository contains only sanitized example profiles and public client/server code — no production certificates or keys.
 
 ## Status
 
