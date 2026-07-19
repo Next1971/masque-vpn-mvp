@@ -27,9 +27,20 @@ This repository will be filled gradually.
 The first public materials will include a short project teaser and a sanitized server-side implementation.
 Android sources will be added after removing infrastructure-specific references and private endpoints.
 
+## Repository structure
+
+- [`server/`](./server) — sanitized server-side materials
+- [`android/`](./android) — sanitized Android-side materials
+- [`docs/ROADMAP.md`](./docs/ROADMAP.md) — publication and MVP roadmap
+  
 ## Privacy note
 
 Sensitive infrastructure details, hostnames, VPS addresses, domains and deployment-specific values are intentionally excluded from the public version of this project.
+
+## Publication approach
+
+This repository is being published gradually.
+Each public component is reviewed and sanitized before upload.
 
 ## Disclaimer
 
