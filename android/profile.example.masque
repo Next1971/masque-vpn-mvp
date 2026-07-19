@@ -1,6 +1,7 @@
 # Example MASQUE Android profile (sanitized)
-# Import in the Android app using the "Import profile" action.
-# This file contains placeholders only. Do not publish real certificates or private keys.
+# Import this file in the Android app using the "Import profile" action.
+# Replace all placeholder values with your own server address, DNS, and TLS material.
+# Never commit real certificates or private keys to a public repository.
 
 [server]
 address = "vpn.example.com:4433"
@@ -10,6 +11,8 @@ name = "Example MASQUE Server"
 dns = "1.1.1.1"
 
 [tls]
+# PEM-encoded certificate material or app-specific imported values,
+# depending on how your Android client stores them.
 ca = ""
 cert = ""
 key = ""
