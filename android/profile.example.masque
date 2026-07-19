@@ -1,0 +1,15 @@
+# Example MASQUE Android profile (sanitized)
+# Import in the Android app using the "Import profile" action.
+# This file contains placeholders only. Do not publish real certificates or private keys.
+
+[server]
+address = "vpn.example.com:4433"
+name = "Example MASQUE Server"
+
+[tun]
+dns = "1.1.1.1"
+
+[tls]
+ca = ""
+cert = ""
+key = ""
