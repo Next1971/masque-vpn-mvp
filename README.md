@@ -16,6 +16,13 @@ After three days of testing:
 - **Server**: tested on two different VPS providers and works reliably in both setups.
 - **Windows client**: experimental and currently unstable. It may randomly lose connection or hang. Use at your own risk until further fixes are made.
 
+## Next milestone (August 2026)
+
+Target for the next public release:
+
+- **Windows client**: reach a stable build suitable for daily use (no random disconnects, improved error handling).
+- **Android client**: add a dedicated Android TV version, with UI adapted for remote control and large screens.
+  
 ## Goals
 
 - Build a practical MASQUE-based VPN stack
