@@ -8,6 +8,13 @@ This repository is an early public project space for a working MVP.
 The Android client and server side are already in progress.
 A Windows build also exists as an executable prototype.
 
+## Status (July 2026)
+
+After three days of testing:
+
+- **Android client + server**: stable in everyday use. No critical issues observed so far.
+- **Windows client**: experimental and currently unstable. It may randomly lose connection or hang. Use at your own risk until further fixes are made.
+
 ## Goals
 
 - Build a practical MASQUE-based VPN stack
