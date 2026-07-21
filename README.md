@@ -13,6 +13,7 @@ A Windows build also exists as an executable prototype.
 After three days of testing:
 
 - **Android client + server**: stable in everyday use. No critical issues observed so far.
+- **Server**: tested on two different VPS providers and works reliably in both setups.
 - **Windows client**: experimental and currently unstable. It may randomly lose connection or hang. Use at your own risk until further fixes are made.
 
 ## Goals
