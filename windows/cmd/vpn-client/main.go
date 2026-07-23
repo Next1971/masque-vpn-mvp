@@ -26,8 +26,8 @@ import (
 // (Later, the Android/Windows UI may store the key in secure storage.)
 type Profile struct {
 	// [server]
-	Server     string `toml:"server"`      // host:port of the MASQUE proxy (UDP), e.g. "80.85.241.127:4433"
-	ServerName string `toml:"server_name"` // TLS SNI / URI-template host, e.g. "masque.zavodovskii.com"
+	Server     string `toml:"server"`      // host:port of the MASQUE proxy (UDP), e.g. "84.85.24.17:4433"
+	ServerName string `toml:"server_name"` // TLS SNI / URI-template host, e.g. "masque.server.com"
 
 	// [tls] — mTLS material (paths to PEM files, NOT inline secrets)
 	CA   string `toml:"ca"`   // CA for server certificate verification
