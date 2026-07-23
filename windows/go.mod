@@ -1,4 +1,4 @@
-module github.com/Next1971/masque-vpn-mvp/windows
+module masque-client
 
 go 1.25.5
 
