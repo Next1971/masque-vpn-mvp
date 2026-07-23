@@ -20,7 +20,7 @@ After three days of testing:
 
 Target for the next public release:
 
-- **Windows client**: reach a stable build suitable for daily use (no random disconnects, improved error handling).
+- **Windows client**: reach a stable build suitable for daily use (no random disconnects, improved error handling). 
 - **Android client**: add a dedicated Android TV version, with UI adapted for remote control and large screens.
   
 ## Goals
