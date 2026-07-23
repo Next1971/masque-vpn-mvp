@@ -14,7 +14,7 @@ minimal UI + profile import.
 masque-android/
 ├─ app/
 │  ├─ src/main/
-│  │  ├─ java/com/zavodovskii/masque/
+│  │  ├─ java/com/masque/
 │  │  │  ├─ MainActivity.kt        UI: profile import, connect button, status
 │  │  │  ├─ MasqueVpnService.kt    VpnService: builds TUN, passes fd to Go core
 │  │  │  └─ ProfileStore.kt        .masque parsing, certificate storage
