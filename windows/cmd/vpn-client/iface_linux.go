@@ -11,7 +11,7 @@ import (
 	"strings"
 )
 
-// runCmd выполняет команду и возвращает ошибку с выводом при неудаче.
+// runCmd runs a command and returns an error with output on failure.
 func runCmd(name string, args ...string) error {
 	out, err := exec.Command(name, args...).CombinedOutput()
 	if err != nil {
@@ -20,9 +20,9 @@ func runCmd(name string, args ...string) error {
 	return nil
 }
 
-// ifUp поднимает интерфейс с адресом клиента (маску берём /32, адрес точечный).
+// ifUp brings up the interface with the client address (use /32 mask, point address).
 func ifUp(iface string, addr netip.Prefix) error {
-	// Адрес выдан как /32 — назначаем его на интерфейс с /32 и поднимаем линк.
+	// The address is assigned as /32 — assign it to the interface with /32 and bring the link up.
 	if err := runCmd("ip", "addr", "add", addr.String(), "dev", iface); err != nil {
 		return err
 	}
@@ -32,11 +32,11 @@ func ifUp(iface string, addr netip.Prefix) error {
 	return nil
 }
 
-// setupTestRoute добавляет маршрут ТОЛЬКО до dst через TUN, не трогая default.
-// Указываем src = адрес клиента в туннеле, чтобы исходящие пакеты имели
-// правильный source (иначе ядро NAT-ит чужой src и ответ не вернётся).
-// Безопасно на VPS: SSH и серверный трафик идут прежним путём.
-// Возвращает cleanup, удаляющий маршрут.
+// setupTestRoute adds a route ONLY to dst through TUN, without touching default.
+// Specify src = the client address in the tunnel so outgoing packets use
+// the correct source (otherwise the kernel NATs a foreign src and the reply will not return).
+// Safe on a VPS: SSH and server traffic continue to use the original path.
+// Returns cleanup that removes the route.
 func setupTestRoute(iface string, dst netip.Addr, src netip.Addr) (func(), error) {
 	route := dst.String() + "/32"
 	if err := runCmd("ip", "route", "add", route, "dev", iface, "src", src.String()); err != nil {
@@ -49,11 +49,11 @@ func setupTestRoute(iface string, dst netip.Addr, src netip.Addr) (func(), error
 	}, nil
 }
 
-// setupFullRoute заворачивает весь трафик в TUN. Чтобы QUIC-пакеты до VPS
-// не зациклились в туннель, добавляет host-route до сервера через текущий
-// default-шлюз. Только для реального устройства (E3), НЕ на VPS.
+// setupFullRoute sends all traffic into TUN. To prevent QUIC packets to the VPS
+// from looping into the tunnel, it adds a host-route to the server via the current
+// default gateway. Only for a real device (E3), NOT on a VPS.
 func setupFullRoute(iface, server string, _ netip.Addr, _ []string) (func(), error) {
-	// Извлекаем IP сервера (host:port).
+	// Extract the server IP (host:port).
 	host := server
 	if i := strings.LastIndex(server, ":"); i > 0 {
 		host = server[:i]
@@ -63,25 +63,25 @@ func setupFullRoute(iface, server string, _ netip.Addr, _ []string) (func(), err
 		return nil, fmt.Errorf("server host %q is not an IP (test mode expects literal IP): %w", host, err)
 	}
 
-	// Определяем текущий default-шлюз.
+	// Detect the current default gateway.
 	gw, dev, err := defaultGateway()
 	if err != nil {
 		return nil, fmt.Errorf("detect default gateway: %w", err)
 	}
 	log.Printf("current default gateway: %s dev %s", gw, dev)
 
-	// 1. Host-route до VPS через прежний шлюз (иначе петля).
+	// 1. Host-route to the VPS via the previous gateway (otherwise a loop).
 	srvRoute := serverIP.String() + "/32"
 	if err := runCmd("ip", "route", "add", srvRoute, "via", gw.String(), "dev", dev); err != nil {
 		return nil, fmt.Errorf("add server bypass route: %w", err)
 	}
 
-	// 2. Заворачиваем весь трафик в TUN двумя половинками /1 (перекрывают default,
-	//    но не удаляют исходный — легко откатить).
+	// 2. Send all traffic into TUN with two /1 halves (they override default,
+	//    but do not remove the original one — easy to roll back).
 	added := []string{}
 	for _, half := range []string{"0.0.0.0/1", "128.0.0.0/1"} {
 		if err := runCmd("ip", "route", "add", half, "dev", iface); err != nil {
-			// откат уже добавленного
+			// rollback already added routes
 			for _, h := range added {
 				_ = runCmd("ip", "route", "del", h, "dev", iface)
 			}
@@ -103,13 +103,13 @@ func setupFullRoute(iface, server string, _ netip.Addr, _ []string) (func(), err
 	}, nil
 }
 
-// defaultGateway парсит `ip route show default` → (gateway, dev).
+// defaultGateway parses `ip route show default` → (gateway, dev).
 func defaultGateway() (netip.Addr, string, error) {
 	out, err := exec.Command("ip", "route", "show", "default").CombinedOutput()
 	if err != nil {
 		return netip.Addr{}, "", fmt.Errorf("ip route show default: %w", err)
 	}
-	// пример: "default via 203.0.113.1 dev ens3 proto static"
+	// example: "default via 203.0.113.1 dev ens3 proto static"
 	fields := strings.Fields(string(out))
 	var gw, dev string
 	for i := 0; i < len(fields)-1; i++ {
@@ -130,9 +130,9 @@ func defaultGateway() (netip.Addr, string, error) {
 	return addr, dev, nil
 }
 
-// runPingTest шлёт ICMP echo системным ping'ом через уже настроенный маршрут,
-// привязываясь к клиентскому TUN (-I iface), чтобы source был адресом в туннеле.
-// Пакеты идут TUN → ядро → сервер → интернет → назад. Проверяет data-plane.
+// runPingTest sends ICMP echo using the system ping through the already configured route,
+// binding to the client TUN (-I iface) so the source is the tunnel address.
+// Packets go TUN → kernel → server → internet → back. Verifies the data plane.
 func runPingTest(ctx context.Context, dst, iface string, count int) error {
 	log.Printf("sending %d ICMP echo(s) to %s via tunnel (bind %s)...", count, dst, iface)
 	out, err := exec.CommandContext(ctx, "ping", "-c", fmt.Sprint(count), "-W", "5", "-I", iface, dst).CombinedOutput()
