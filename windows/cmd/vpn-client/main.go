@@ -1,65 +1,130 @@
-// vpn-client — Linux-обёртка вокруг общего клиентского ядра clientcore.
-//
-// Ядро (internal/clientcore) платформо-независимо и НЕ трогает TUN/маршруты.
-// Эта обёртка делает платформенную часть для Linux:
-//   - создаёт TUN (wireguard/tun, CreateTUN по имени);
-//   - поднимает интерфейс с выданным сервером адресом (ip addr/link);
-//   - настраивает маршрутизацию;
-//   - по сигналу грациозно закрывает сессию и откатывает интерфейс.
-//
-// Два режима маршрутизации:
-//   test (по умолчанию): маршрут только до -test-dst через клиентский TUN;
-//     НЕ трогает default route хоста → безопасно для loopback-теста на VPS.
-//   full (-full-route):  заворачивает весь трафик (0.0.0.0/0) в TUN, добавляя
-//     host-route до VPS-сервера через прежний шлюз (чтобы QUIC не зациклился).
-//     Для реального устройства (E3), НЕ запускать на самом VPS.
 package main
 
 import (
-	"context"
-	"flag"
-	"fmt"
-	"log"
-	"net/netip"
-	"os"
-	"os/signal"
-	"syscall"
-	"time"
+    "context"
+   
+    "flag"
+    "fmt"
+    "io"
+    "log"
+    "net/http"
+    "net/netip"
+    "os"
+    "os/signal"
+    "syscall"
+    "time"
 
-	"github.com/zavodovskii/masque-b2/internal/clientcore"
-	"golang.zx2c4.com/wireguard/tun"
+    "masque-client"
+    "golang.zx2c4.com/wireguard/tun"
+)
+
+
+
+var (
+    globalCancel context.CancelFunc
+    globalProf   *clientcore.Profile
 )
 
 func main() {
-	var (
-		profilePath = flag.String("profile", "", "path to client profile TOML (required)")
-		testMode    = flag.Bool("test", true, "test mode: route only -test-dst via TUN (safe on VPS)")
-		fullRoute   = flag.Bool("full-route", false, "full mode: route all traffic via TUN (real device only)")
-		testDst     = flag.String("test-dst", "1.1.1.1", "test-mode: destination to route through tunnel")
-		pingCount   = flag.Int("ping", 3, "test-mode: number of ICMP echo requests to send")
-		timeout     = flag.Duration("timeout", 25*time.Second, "overall timeout")
-		verbose     = flag.Bool("verbose", false, "verbose diagnostics (per-packet conn→TUN trace, TTL fixes)")
-	)
-	flag.Parse()
-	clientcore.Verbose = *verbose
+    // 1. Восстанавливаем флаги для командной строки
+    profilePath := flag.String("profile", "", "path to client profile TOML (required)")
+    testMode := flag.Bool("test", true, "test mode: route only -test-dst via TUN")
+    fullRoute := flag.Bool("full-route", false, "full mode: route all traffic via TUN")
+    testDst := flag.String("test-dst", "1.1.1.1", "test-mode: destination to route through tunnel")
+    pingCount := flag.Int("ping", 3, "test-mode: number of ICMP echo requests to send")
+    timeout := flag.Duration("timeout", 25*time.Second, "overall timeout")
+    flag.Parse()
 
-	if *profilePath == "" {
-		log.Fatalf("FAIL: -profile is required")
-	}
+    // 2. Если передали -profile, работаем в консоли
+    if *profilePath != "" {
+        prof, err := clientcore.LoadProfile(*profilePath)
+        if err != nil {
+            log.Fatalf("FAIL: load profile: %v", err)
+        }
+        ctx, cancel := context.WithTimeout(context.Background(), *timeout)
+        defer cancel()
 
-	prof, err := clientcore.LoadProfile(*profilePath)
-	if err != nil {
-		log.Fatalf("FAIL: load profile: %v", err)
-	}
-	log.Printf("loaded profile: server=%s server_name=%s tun=%s mtu=%d",
-		prof.Server, prof.ServerName, prof.TUNName, prof.MTU)
+        err = run(ctx, prof, *testMode, *fullRoute, *testDst, *pingCount)
+        if err != nil {
+            log.Fatalf("FAIL: %v", err)
+        }
+        return
+    }
 
-	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
-	defer cancel()
+    // 3. Если флагов нет — запускаем Веб-интерфейс
+    http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+        data, err := os.ReadFile("index.html")
+        if err != nil {
+            http.Error(w, "Не удалось прочитать index.html", 500)
+            return
+        }
+        w.Write(data)
+    })
 
-	if err := run(ctx, prof, *testMode, *fullRoute, *testDst, *pingCount); err != nil {
-		log.Fatalf("FAIL: %v", err)
-	}
+    http.HandleFunc("/upload", func(w http.ResponseWriter, r *http.Request) {
+        if r.Method != "POST" {
+            http.Error(w, "Method not allowed", 405)
+            return
+        }
+        file, _, err := r.FormFile("file")
+        if err != nil {
+            http.Error(w, "Ошибка чтения файла", 400)
+            return
+        }
+        defer file.Close()
+
+        tempPath := "uploaded_profile.toml"
+        out, err := os.Create(tempPath)
+        if err != nil {
+            http.Error(w, "Не удалось сохранить файл", 500)
+            return
+        }
+        defer out.Close()
+        io.Copy(out, file)
+
+        prof, err := clientcore.LoadProfile(tempPath)
+        if err != nil {
+            http.Error(w, "Ошибка парсинга TOML: "+err.Error(), 400)
+            return
+        }
+        globalProf = prof
+        w.WriteHeader(200)
+    })
+
+    http.HandleFunc("/connect", func(w http.ResponseWriter, r *http.Request) {
+        if globalProf == nil {
+            w.Write([]byte(`{"status":"error", "error":"Сначала загрузите конфиг"}`))
+            return
+        }
+        if globalCancel != nil {
+            w.Write([]byte(`{"status":"error", "error":"Уже включено"}`))
+            return
+        }
+
+        ctx, cancel := context.WithCancel(context.Background())
+        globalCancel = cancel
+
+        go func() {
+            err := run(ctx, globalProf, false, true, "1.1.1.1", 3)
+            if err != nil {
+                log.Printf("VPN Error: %v", err)
+            }
+            globalCancel = nil
+        }()
+
+        w.Write([]byte(`{"status":"ok", "ip":"Подключено"}`))
+    })
+
+    http.HandleFunc("/disconnect", func(w http.ResponseWriter, r *http.Request) {
+        if globalCancel != nil {
+            globalCancel()
+            globalCancel = nil
+        }
+        w.Write([]byte(`{"status":"ok"}`))
+    })
+
+    log.Println("Веб-интерфейс запущен! Откройте в браузере: http://localhost:8080")
+    log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
 func run(ctx context.Context, prof *clientcore.Profile, testMode, fullRoute bool, testDst string, pingCount int) error {
@@ -70,12 +135,14 @@ func run(ctx context.Context, prof *clientcore.Profile, testMode, fullRoute bool
 	}
 	name, _ := dev.Name()
 	log.Printf("TUN %s created (mtu %d)", name, prof.MTU)
+	
 	defer func() {
 		dev.Close()
 		log.Printf("TUN %s closed", name)
 	}()
 
 	// 2. Подключаемся ядром (QUIC + mTLS + CONNECT-IP).
+	
 	sess, err := clientcore.Connect(ctx, prof, dev)
 	if err != nil {
 		return fmt.Errorf("connect: %w", err)
