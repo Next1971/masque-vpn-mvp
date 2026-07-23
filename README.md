@@ -10,19 +10,13 @@ A Windows build also exists as an executable prototype.
 
 ## Status (July 2026)
 
-After three days of testing:
+After 8 days of testing:
 
 - **Android client + server**: stable in everyday use. No critical issues observed so far.
 - **Server**: tested on two different VPS providers and works reliably in both setups.
-- **Windows client**: experimental and currently unstable. It may randomly lose connection or hang. Use at your own risk until further fixes are made.
+- **Windows client**: MASQUE Windows Client v2.0 — Web UI & Stability Update
+This major update introduces a user-friendly Web GUI, eliminating the need to use the command line for daily use. We've also fixed critical connection issues to ensure a stable VPN experience on Windows.
 
-## Next milestone (August 2026)
-
-Target for the next public release:
-
-- **Windows client**: reach a stable build suitable for daily use (no random disconnects, improved error handling). 
-- **Android client**: add a dedicated Android TV version, with UI adapted for remote control and large screens.
-  
 ## Goals
 
 - Build a practical MASQUE-based VPN stack
