@@ -1,0 +1,22 @@
+MASQUE Windows Client v2.0 — Web UI & Stability Update
+This major update introduces a user-friendly Web GUI, eliminating the need to use the command line for daily use. We've also fixed critical connection issues to ensure a stable VPN experience on Windows.
+
+✨ What's New
+Local Web Interface: The client now runs a local web server. You can manage your VPN connection directly from your browser at http://localhost:8080.
+One-Click Connect: Upload your profile.client.toml and connect/disconnect with a single button. No more command-line flags required!
+Dual Mode: CLI mode is still supported. If you run the .exe with the -profile flag, it operates in the old console mode. Running it without flags launches the Web UI.
+🐛 Bug Fixes
+Fixed QUIC dial: context deadline exceeded: Resolved an issue where context timeouts were triggered prematurely during TUN setup, causing immediate connection drops.
+Fixed TLS Handshake Failures: Improved compatibility with self-signed certificates on Windows.
+Fixed Wintun Loading: Resolved Unable to load library: wintun.dll errors when launching the application as Administrator.
+📖 How to Use (Web UI Mode)
+Extract the release archive to a folder (e.g., masque-client).
+Right-click vpn-client.exe and select "Run as Administrator".
+Open your web browser and navigate to http://localhost:8080.
+Click "Choose File" and select your profile.client.toml.
+Click "ВКЛЮЧИТЬ" (Connect). The status will change to "Подключено".
+To disconnect, click "ВЫКЛЮЧИТЬ" (Disconnect) or simply close the console window.
+⚙️ How to Use (CLI Mode)
+For advanced users or scripts, the CLI mode is still available:
+
+vpn-client.exe -profile profile.client.toml -full-route -timeout 60s
