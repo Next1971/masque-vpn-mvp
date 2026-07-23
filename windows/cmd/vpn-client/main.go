@@ -1,215 +1,133 @@
-package main
+// Package clientcore is the shared MASQUE client core for all platforms
+// (Linux/Windows/Android). The core does NOT create TUN itself and does NOT
+// touch routing — these platform-specific details are injected from outside
+// by thin wrappers:
+//   - Linux:   cmd/vpn-client (CreateTUN by name + ip route)
+//   - Windows: wrapper around wintun + netsh (next stage)
+//   - Android: TUN fd from VpnService + CreateTUNFromFile (next stage)
+//
+// This way, the same connection/forwarding/closing code is reused
+// across all platforms — this is the "shared core" described in PROJECT.md.
+package clientcore
 
 import (
-    "context"
-   
-    "flag"
-    "fmt"
-    "io"
-    "log"
-    "net/http"
-    "net/netip"
-    "os"
-    "os/signal"
-    "syscall"
-    "time"
+	"fmt"
+	"net/netip"
 
-    "masque-client"
-    "golang.zx2c4.com/wireguard/tun"
+	"github.com/BurntSushi/toml"
 )
 
+// Profile is the client server profile. The same set of parameters
+// is used for both Android and Windows (PROJECT.md requirement). It is read
+// from a TOML file, which is edited on the device through the UI.
+//
+// Secrets (the client's private key) are stored in the profile as a FILE PATH,
+// not inline — so the profile can be displayed/logged without leaking secrets.
+// (Later, the Android/Windows UI may store the key in secure storage.)
+type Profile struct {
+	// [server]
+	Server     string `toml:"server"`      // host:port of the MASQUE proxy (UDP), e.g. "80.85.241.127:4433"
+	ServerName string `toml:"server_name"` // TLS SNI / URI-template host, e.g. "masque.zavodovskii.com"
 
+	// [tls] — mTLS material (paths to PEM files, NOT inline secrets)
+	CA   string `toml:"ca"`   // CA for server certificate verification
+	Cert string `toml:"cert"` // client certificate (mTLS)
+	Key  string `toml:"key"`  // client private key (mTLS)
 
-var (
-    globalCancel context.CancelFunc
-    globalProf   *clientcore.Profile
-)
-
-func main() {
-    // 1. Восстанавливаем флаги для командной строки
-    profilePath := flag.String("profile", "", "path to client profile TOML (required)")
-    testMode := flag.Bool("test", true, "test mode: route only -test-dst via TUN")
-    fullRoute := flag.Bool("full-route", false, "full mode: route all traffic via TUN")
-    testDst := flag.String("test-dst", "1.1.1.1", "test-mode: destination to route through tunnel")
-    pingCount := flag.Int("ping", 3, "test-mode: number of ICMP echo requests to send")
-    timeout := flag.Duration("timeout", 25*time.Second, "overall timeout")
-    flag.Parse()
-
-    // 2. Если передали -profile, работаем в консоли
-    if *profilePath != "" {
-        prof, err := clientcore.LoadProfile(*profilePath)
-        if err != nil {
-            log.Fatalf("FAIL: load profile: %v", err)
-        }
-        ctx, cancel := context.WithTimeout(context.Background(), *timeout)
-        defer cancel()
-
-        err = run(ctx, prof, *testMode, *fullRoute, *testDst, *pingCount)
-        if err != nil {
-            log.Fatalf("FAIL: %v", err)
-        }
-        return
-    }
-
-    // 3. Если флагов нет — запускаем Веб-интерфейс
-    http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-        data, err := os.ReadFile("index.html")
-        if err != nil {
-            http.Error(w, "Не удалось прочитать index.html", 500)
-            return
-        }
-        w.Write(data)
-    })
-
-    http.HandleFunc("/upload", func(w http.ResponseWriter, r *http.Request) {
-        if r.Method != "POST" {
-            http.Error(w, "Method not allowed", 405)
-            return
-        }
-        file, _, err := r.FormFile("file")
-        if err != nil {
-            http.Error(w, "Ошибка чтения файла", 400)
-            return
-        }
-        defer file.Close()
-
-        tempPath := "uploaded_profile.toml"
-        out, err := os.Create(tempPath)
-        if err != nil {
-            http.Error(w, "Не удалось сохранить файл", 500)
-            return
-        }
-        defer out.Close()
-        io.Copy(out, file)
-
-        prof, err := clientcore.LoadProfile(tempPath)
-        if err != nil {
-            http.Error(w, "Ошибка парсинга TOML: "+err.Error(), 400)
-            return
-        }
-        globalProf = prof
-        w.WriteHeader(200)
-    })
-
-    http.HandleFunc("/connect", func(w http.ResponseWriter, r *http.Request) {
-        if globalProf == nil {
-            w.Write([]byte(`{"status":"error", "error":"Сначала загрузите конфиг"}`))
-            return
-        }
-        if globalCancel != nil {
-            w.Write([]byte(`{"status":"error", "error":"Уже включено"}`))
-            return
-        }
-
-        ctx, cancel := context.WithCancel(context.Background())
-        globalCancel = cancel
-
-        go func() {
-            err := run(ctx, globalProf, false, true, "1.1.1.1", 3)
-            if err != nil {
-                log.Printf("VPN Error: %v", err)
-            }
-            globalCancel = nil
-        }()
-
-        w.Write([]byte(`{"status":"ok", "ip":"Подключено"}`))
-    })
-
-    http.HandleFunc("/disconnect", func(w http.ResponseWriter, r *http.Request) {
-        if globalCancel != nil {
-            globalCancel()
-            globalCancel = nil
-        }
-        w.Write([]byte(`{"status":"ok"}`))
-    })
-
-    log.Println("Веб-интерфейс запущен! Откройте в браузере: http://localhost:8080")
-    log.Fatal(http.ListenAndServe(":8080", nil))
+	// [tun]
+	TUNName string   `toml:"tun_name"` // interface name (Linux/Windows), e.g. "masque0"
+	MTU     int      `toml:"mtu"`      // tunnel MTU, e.g. 1400
+	DNS     []string `toml:"dns"`      // DNS servers for the tunnel (full-route), default ["1.1.1.1"]
 }
 
-func run(ctx context.Context, prof *clientcore.Profile, testMode, fullRoute bool, testDst string, pingCount int) error {
-	// 1. Создаём TUN-интерфейс (платформенная деталь Linux).
-	dev, err := tun.CreateTUN(prof.TUNName, prof.MTU)
+// tomlProfile is an intermediate struct for TOML sections.
+type tomlProfile struct {
+	Server struct {
+		Server     string `toml:"server"`
+		ServerName string `toml:"server_name"`
+	} `toml:"server"`
+	TLS struct {
+		CA   string `toml:"ca"`
+		Cert string `toml:"cert"`
+		Key  string `toml:"key"`
+	} `toml:"tls"`
+	TUN struct {
+		Name string   `toml:"tun_name"`
+		MTU  int      `toml:"mtu"`
+		DNS  []string `toml:"dns"`
+	} `toml:"tun"`
+}
+
+// LoadProfile reads and validates the client's TOML profile.
+// Unknown keys are treated as an error (protection against profile typos).
+func LoadProfile(path string) (*Profile, error) {
+	var tp tomlProfile
+	md, err := toml.DecodeFile(path, &tp)
 	if err != nil {
-		return fmt.Errorf("create TUN %q: %w", prof.TUNName, err)
+		return nil, fmt.Errorf("decode profile %q: %w", path, err)
 	}
-	name, _ := dev.Name()
-	log.Printf("TUN %s created (mtu %d)", name, prof.MTU)
-	
-	defer func() {
-		dev.Close()
-		log.Printf("TUN %s closed", name)
-	}()
-
-	// 2. Подключаемся ядром (QUIC + mTLS + CONNECT-IP).
-	
-	sess, err := clientcore.Connect(ctx, prof, dev)
-	if err != nil {
-		return fmt.Errorf("connect: %w", err)
+	if undec := md.Undecoded(); len(undec) > 0 {
+		return nil, fmt.Errorf("profile %q has unknown keys: %v", path, undec)
 	}
 
-	// 3. Поднимаем интерфейс с выданным адресом.
-	if len(sess.AssignedPrefixes) == 0 {
-		sess.Close()
-		return fmt.Errorf("no address assigned")
+	p := &Profile{
+		Server:     tp.Server.Server,
+		ServerName: tp.Server.ServerName,
+		CA:         tp.TLS.CA,
+		Cert:       tp.TLS.Cert,
+		Key:        tp.TLS.Key,
+		TUNName:    tp.TUN.Name,
+		MTU:        tp.TUN.MTU,
+		DNS:        tp.TUN.DNS,
 	}
-	clientAddr := sess.AssignedPrefixes[0]
-	if err := ifUp(name, clientAddr); err != nil {
-		sess.Close()
-		return fmt.Errorf("bring up %s: %w", name, err)
+	if err := p.Validate(); err != nil {
+		return nil, err
 	}
-	log.Printf("interface %s up with %s", name, clientAddr)
+	return p, nil
+}
 
-	// 4. Маршрутизация.
-	var cleanup func()
-	if fullRoute {
-		cleanup, err = setupFullRoute(name, prof.Server, clientAddr.Addr(), prof.DNS)
-		if err != nil {
-			sess.Close()
-			return fmt.Errorf("setup full route: %w", err)
+// Validate checks required profile fields.
+func (p *Profile) Validate() error {
+	if p.Server == "" {
+		return fmt.Errorf("profile: [server].server is required (host:port)")
+	}
+	if _, err := netip.ParseAddrPort(p.Server); err != nil {
+		// Allow hostname:port — ParseAddrPort requires an IP, so
+		// strict validation is deferred to the Dial stage (ResolveUDPAddr).
+		if !hasPort(p.Server) {
+			return fmt.Errorf("profile: [server].server %q must be host:port", p.Server)
 		}
-		log.Printf("full-route mode: all traffic via %s", name)
-	} else {
-		dst, perr := netip.ParseAddr(testDst)
-		if perr != nil {
-			sess.Close()
-			return fmt.Errorf("parse test-dst %q: %w", testDst, perr)
-		}
-		cleanup, err = setupTestRoute(name, dst, clientAddr.Addr())
-		if err != nil {
-			sess.Close()
-			return fmt.Errorf("setup test route: %w", err)
-		}
-		log.Printf("test mode: routing %s/32 via %s (default route untouched)", dst, name)
 	}
-	defer cleanup()
-
-	// 5. Запускаем форвардинг в фоне.
-	runErr := make(chan error, 1)
-	go func() { runErr <- sess.Run(ctx) }()
-
-	// 6a. Тест-режим: шлём ICMP echo и ждём reply через TUN хоста.
-	if testMode && !fullRoute {
-		if err := runPingTest(ctx, testDst, name, pingCount); err != nil {
-			log.Printf("ping test note: %v", err)
+	if p.ServerName == "" {
+		return fmt.Errorf("profile: [server].server_name is required (TLS SNI)")
+	}
+	if p.MTU == 0 {
+		p.MTU = 1400 // reasonable default for QUIC/MASQUE
+	}
+	if p.MTU < 576 || p.MTU > 9000 {
+		return fmt.Errorf("profile: [tun].mtu %d out of range (576..9000)", p.MTU)
+	}
+	if p.TUNName == "" {
+		p.TUNName = "masque0"
+	}
+	if len(p.DNS) == 0 {
+		p.DNS = []string{"1.1.1.1"} // reasonable default for the tunnel
+	}
+	// DNS address validation.
+	for _, d := range p.DNS {
+		if _, err := netip.ParseAddr(d); err != nil {
+			return fmt.Errorf("profile: [tun].dns %q is not a valid IP: %w", d, err)
 		}
-		sess.Close()
-		<-runErr
-		return nil
 	}
-
-	// 6b. Полный режим: работаем до сигнала.
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
-	select {
-	case <-sigCh:
-		log.Printf("signal received, shutting down")
-	case err := <-runErr:
-		sess.Close()
-		return err
-	case <-ctx.Done():
-	}
-	sess.Close()
-	<-runErr
 	return nil
+}
+
+// hasPort performs a rough check for a trailing ":port" in the string.
+func hasPort(s string) bool {
+	for i := len(s) - 1; i >= 0; i-- {
+		if s[i] == ':' {
+			return i < len(s)-1
+		}
+	}
+	return false
 }
