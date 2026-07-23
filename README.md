@@ -40,6 +40,7 @@ Android sources will be added after removing infrastructure-specific references 
 
 - [`server/`](./server) — sanitized server-side materials
 - [`android/`](./android) — sanitized Android-side materials
+- [`windows/`](./windows) — sanitized Android-side materials
 - [`docs/ROADMAP.md`](./docs/ROADMAP.md) — publication and MVP roadmap
   
 ## Privacy note
