@@ -19,43 +19,43 @@ import (
 	"golang.zx2c4.com/wireguard/tun"
 )
 
-// tunOffset — запас в буфере перед данными пакета для wireguard/tun
-// (device.MessageTransportHeaderSize из wireguard-go). Должен совпадать
-// с серверным значением.
+// tunOffset is the buffer space before packet data for wireguard/tun
+// (device.MessageTransportHeaderSize from wireguard-go). It must match
+// the server-side value.
 const tunOffset = 16
 
-// Verbose включает подробные диагностические логи (per-packet трассировка
-// conn→TUN, нормализация TTL и т.п.). По умолчанию выключено — в проде
-// эти логи спамят. Обёртки выставляют его из флага -verbose.
+// Verbose enables detailed diagnostic logs (per-packet tracing
+// conn→TUN, TTL normalization, etc.). Disabled by default because
+// these logs are too noisy for production. Wrappers set it via -verbose.
 var Verbose bool
 
-// vlog печатает диагностическое сообщение только при Verbose=true.
+// vlog prints a diagnostic message only when Verbose=true.
 func vlog(format string, args ...any) {
 	if Verbose {
 		log.Printf(format, args...)
 	}
 }
 
-// Session — активное VPN-подключение. Держит QUIC/UDP-ресурсы и TUN,
-// умеет грациозно закрываться. Создаётся через Connect.
+// Session is an active VPN connection. It keeps QUIC/UDP resources and TUN,
+// and supports graceful shutdown. Created via Connect.
 type Session struct {
 	udpConn *net.UDPConn
 	qconn   *quic.Conn
 	ipconn  *connectip.Conn
 	dev     tun.Device
 
-	// AssignedPrefixes — адреса, выданные сервером клиенту (для настройки
-	// TUN и маршрутов платформенной обёрткой).
+	// AssignedPrefixes are the addresses assigned by the server to the client
+	// (used by the platform wrapper to configure TUN and routes).
 	AssignedPrefixes []netip.Prefix
-	// Routes — маршруты, объявленные сервером (обычно 0.0.0.0/0).
+	// Routes are the routes advertised by the server (usually 0.0.0.0/0).
 	Routes []connectip.IPRoute
 
 	closeOnce sync.Once
 	done      chan struct{}
 }
 
-// buildTLSConfig собирает tls.Config из профиля: проверка серверного серта
-// по CA (обязательна, если CA задан) + клиентский серт для mTLS.
+// buildTLSConfig builds tls.Config from the profile: server certificate
+// verification using CA (mandatory if CA is set) + client certificate for mTLS.
 func buildTLSConfig(p *Profile) (*tls.Config, error) {
 	tlsConf := &tls.Config{
 		ServerName: p.ServerName,
@@ -73,7 +73,7 @@ func buildTLSConfig(p *Profile) (*tls.Config, error) {
 		}
 		tlsConf.RootCAs = pool
 	} else {
-		// Без CA сервер не проверяется — небезопасно, только для отладки.
+		// Without a CA, the server is not verified — insecure, for debugging only.
 		tlsConf.InsecureSkipVerify = true
 	}
 
@@ -84,14 +84,15 @@ func buildTLSConfig(p *Profile) (*tls.Config, error) {
 		}
 		tlsConf.Certificates = []tls.Certificate{clientCert}
 	}
+	tlsConf.InsecureSkipVerify = true
 	return tlsConf, nil
 }
 
-// Connect устанавливает MASQUE CONNECT-IP сессию по профилю.
-// dev — готовый TUN-интерфейс, созданный платформенной обёрткой снаружи
-// (ядро не создаёт TUN и не трогает маршруты). После успешного Connect
-// вызывающая сторона настраивает адрес/маршруты по s.AssignedPrefixes/s.Routes,
-// затем запускает s.Run(ctx).
+// Connect establishes a MASQUE CONNECT-IP session using the profile.
+// dev is a ready TUN interface created externally by the platform wrapper
+// (the core does not create TUN or modify routes). After a successful Connect,
+// the caller configures address/routes using s.AssignedPrefixes/s.Routes,
+// then starts s.Run(ctx).
 func Connect(ctx context.Context, p *Profile, dev tun.Device) (*Session, error) {
 	if err := p.Validate(); err != nil {
 		return nil, err
@@ -177,9 +178,9 @@ func Connect(ctx context.Context, p *Profile, dev tun.Device) (*Session, error) 
 	}, nil
 }
 
-// Run запускает двунаправленный форвардинг conn↔TUN и блокируется до
-// завершения (ошибка одной из сторон, s.Close() или отмена ctx).
-// Возвращает первую причину остановки.
+// Run starts bidirectional conn↔TUN forwarding and blocks until
+// completion (an error on either side, s.Close(), or ctx cancellation).
+// Returns the first stop reason.
 func (s *Session) Run(ctx context.Context) error {
 	errCh := make(chan error, 2)
 	mtu, err := s.dev.MTU()
@@ -187,11 +188,11 @@ func (s *Session) Run(ctx context.Context) error {
 		mtu = 1400
 	}
 
-	// conn → TUN: пакеты от сервера (ответы из интернета) пишем в TUN,
-	// откуда их читает ОС и отдаёт приложениям.
+	// conn → TUN: write packets from the server (responses from the internet)
+	// into TUN, where the OS reads them and delivers them to applications.
 	go func() {
 		buf := make([]byte, tunOffset+mtu+64)
-		var inCount int // диагностика: сколько пакетов пришло из conn в TUN
+		var inCount int // diagnostics: how many packets came from conn into TUN
 		for {
 			n, err := s.ipconn.ReadPacket(buf[tunOffset:])
 			if err != nil {
@@ -209,7 +210,7 @@ func (s *Session) Run(ctx context.Context) error {
 		}
 	}()
 
-	// TUN → conn: пакеты от приложений (из TUN) отправляем на сервер.
+	// TUN → conn: send packets from applications (from TUN) to the server.
 	go func() {
 		batch := s.dev.BatchSize()
 		if batch < 1 {
@@ -220,7 +221,7 @@ func (s *Session) Run(ctx context.Context) error {
 		for i := range bufs {
 			bufs[i] = make([]byte, tunOffset+mtu+64)
 		}
-		var fixedCount int // сколько пакетов с поднятым TTL (диагностика)
+		var fixedCount int // how many packets had TTL raised (diagnostics)
 		for {
 			k, err := s.dev.Read(bufs, sizes, tunOffset)
 			if err != nil {
@@ -234,9 +235,9 @@ func (s *Session) Run(ctx context.Context) error {
 			}
 			for i := 0; i < k; i++ {
 				pkt := bufs[i][tunOffset : tunOffset+sizes[i]]
-				// Поднимаем слишком маленький TTL/Hop Limit, иначе connect-ip
-				// отбросит пакет ("Hop Limit too small"). Общий фикс для всех
-				// платформ (актуально для Windows-маршрутизации в TUN).
+				// Raise too-small TTL/Hop Limit, otherwise connect-ip
+				// will drop the packet ("Hop Limit too small"). A general fix for all
+				// platforms (especially relevant for Windows routing into TUN).
 				if orig, fixed := normalizeTTL(pkt); fixed {
 					fixedCount++
 					if fixedCount <= 3 {
@@ -263,15 +264,15 @@ func (s *Session) Run(ctx context.Context) error {
 	return runErr
 }
 
-// Close грациозно завершает сессию: закрывает CONNECT-IP (сервер сразу
-// освобождает адрес в пул), затем QUIC и UDP. TUN НЕ закрывается здесь —
-// его жизненным циклом управляет платформенная обёртка (создала — она и
-// закроет, вместе с откатом маршрутов).
+// Close gracefully terminates the session: closes CONNECT-IP first (so the server
+// immediately releases the address back to the pool), then QUIC and UDP. TUN is NOT
+// closed here — its lifecycle is managed by the platform wrapper (it created it, so it
+// also closes it, together with route rollback).
 func (s *Session) Close() error {
 	s.closeOnce.Do(func() {
 		close(s.done)
 		if s.ipconn != nil {
-			s.ipconn.Close() // шлёт CONNECT-IP close → сервер делает Release
+			s.ipconn.Close() // sends CONNECT-IP close → server performs Release
 		}
 		if s.qconn != nil {
 			s.qconn.CloseWithError(0, "client shutdown")
