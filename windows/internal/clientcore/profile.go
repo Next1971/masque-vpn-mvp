@@ -1,12 +1,13 @@
-// Package clientcore — общее клиентское ядро MASQUE для всех платформ
-// (Linux/Windows/Android). Ядро НЕ создаёт TUN само и НЕ трогает маршруты —
-// эти платформенные детали инжектируются снаружи тонкими обёртками:
-//   - Linux:   cmd/vpn-client (CreateTUN по имени + ip route)
-//   - Windows: обёртка на wintun + netsh (следующий этап)
-//   - Android: TUN fd от VpnService + CreateTUNFromFile (следующий этап)
+// Package clientcore is the shared MASQUE client core for all platforms
+// (Linux/Windows/Android). The core does NOT create TUN itself and does NOT
+// touch routing — these platform-specific details are injected from outside
+// by thin wrappers:
+//   - Linux:   cmd/vpn-client (CreateTUN by name + ip route)
+//   - Windows: wrapper around wintun + netsh (next stage)
+//   - Android: TUN fd from VpnService + CreateTUNFromFile (next stage)
 //
-// Так один и тот же код подключения/форвардинга/закрытия переиспользуется
-// на всех платформах — это и есть «единое ядро» из PROJECT.md.
+// This way, the same connection/forwarding/closing code is reused
+// across all platforms — this is the "shared core" described in PROJECT.md.
 package clientcore
 
 import (
@@ -16,30 +17,30 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
-// Profile — серверный профиль клиента. Один и тот же набор параметров
-// для Android и Windows (требование PROJECT.md). Читается из TOML-файла,
-// который на устройстве редактируется через UI.
+// Profile is the client server profile. The same set of parameters
+// is used for both Android and Windows (PROJECT.md requirement). It is read
+// from a TOML file, which is edited on the device through the UI.
 //
-// Секреты (приватный ключ клиента) в профиле хранятся как ПУТЬ к файлу,
-// а не инлайн — чтобы профиль можно было показывать/логировать без утечки.
-// (На Android/Windows UI позже может хранить ключ в защищённом хранилище.)
+// Secrets (the client's private key) are stored in the profile as a FILE PATH,
+// not inline — so the profile can be displayed/logged without leaking secrets.
+// (Later, the Android/Windows UI may store the key in secure storage.)
 type Profile struct {
 	// [server]
-	Server     string `toml:"server"`      // host:port MASQUE-прокси (UDP), напр. "80.85.241.127:4433"
-	ServerName string `toml:"server_name"` // TLS SNI / URI-template host, напр. "masque.zavodovskii.com"
+	Server     string `toml:"server"`      // host:port of the MASQUE proxy (UDP), e.g. "80.85.24.127:4433"
+	ServerName string `toml:"server_name"` // TLS SNI / URI-template host, e.g. "masque.server.com"
 
-	// [tls] — mTLS-материал (пути к PEM-файлам, НЕ инлайн-секреты)
-	CA   string `toml:"ca"`   // CA для проверки серверного сертификата
-	Cert string `toml:"cert"` // клиентский сертификат (mTLS)
-	Key  string `toml:"key"`  // приватный ключ клиента (mTLS)
+	// [tls] — mTLS material (paths to PEM files, NOT inline secrets)
+	CA   string `toml:"ca"`   // CA for server certificate verification
+	Cert string `toml:"cert"` // client certificate (mTLS)
+	Key  string `toml:"key"`  // client private key (mTLS)
 
 	// [tun]
-	TUNName string   `toml:"tun_name"` // имя интерфейса (Linux/Windows), напр. "masque0"
-	MTU     int      `toml:"mtu"`      // MTU туннеля, напр. 1400
-	DNS     []string `toml:"dns"`      // DNS-серверы для туннеля (full-route), по умолчанию ["1.1.1.1"]
+	TUNName string   `toml:"tun_name"` // interface name (Linux/Windows), e.g. "masque0"
+	MTU     int      `toml:"mtu"`      // tunnel MTU, e.g. 1400
+	DNS     []string `toml:"dns"`      // DNS servers for the tunnel (full-route), default ["1.1.1.1"]
 }
 
-// tomlProfile — промежуточная структура для секций TOML.
+// tomlProfile is an intermediate struct for TOML sections.
 type tomlProfile struct {
 	Server struct {
 		Server     string `toml:"server"`
@@ -57,8 +58,8 @@ type tomlProfile struct {
 	} `toml:"tun"`
 }
 
-// LoadProfile читает и валидирует TOML-профиль клиента.
-// Неизвестные ключи считаются ошибкой (защита от опечаток в профиле).
+// LoadProfile reads and validates the client's TOML profile.
+// Unknown keys are treated as an error (protection against profile typos).
 func LoadProfile(path string) (*Profile, error) {
 	var tp tomlProfile
 	md, err := toml.DecodeFile(path, &tp)
@@ -85,14 +86,14 @@ func LoadProfile(path string) (*Profile, error) {
 	return p, nil
 }
 
-// Validate проверяет обязательные поля профиля.
+// Validate checks required profile fields.
 func (p *Profile) Validate() error {
 	if p.Server == "" {
 		return fmt.Errorf("profile: [server].server is required (host:port)")
 	}
 	if _, err := netip.ParseAddrPort(p.Server); err != nil {
-		// Допускаем hostname:port — ParseAddrPort требует IP, поэтому
-		// строгую проверку оставляем на этап Dial (ResolveUDPAddr).
+		// Allow hostname:port — ParseAddrPort requires an IP, so
+		// strict validation is deferred to the Dial stage (ResolveUDPAddr).
 		if !hasPort(p.Server) {
 			return fmt.Errorf("profile: [server].server %q must be host:port", p.Server)
 		}
@@ -101,7 +102,7 @@ func (p *Profile) Validate() error {
 		return fmt.Errorf("profile: [server].server_name is required (TLS SNI)")
 	}
 	if p.MTU == 0 {
-		p.MTU = 1400 // разумное значение по умолчанию для QUIC/MASQUE
+		p.MTU = 1400 // reasonable default for QUIC/MASQUE
 	}
 	if p.MTU < 576 || p.MTU > 9000 {
 		return fmt.Errorf("profile: [tun].mtu %d out of range (576..9000)", p.MTU)
@@ -110,9 +111,9 @@ func (p *Profile) Validate() error {
 		p.TUNName = "masque0"
 	}
 	if len(p.DNS) == 0 {
-		p.DNS = []string{"1.1.1.1"} // разумный дефолт для туннеля
+		p.DNS = []string{"1.1.1.1"} // reasonable default for the tunnel
 	}
-	// Валидация DNS-адресов.
+	// DNS address validation.
 	for _, d := range p.DNS {
 		if _, err := netip.ParseAddr(d); err != nil {
 			return fmt.Errorf("profile: [tun].dns %q is not a valid IP: %w", d, err)
@@ -121,7 +122,7 @@ func (p *Profile) Validate() error {
 	return nil
 }
 
-// hasPort грубо проверяет наличие ":port" в конце строки.
+// hasPort performs a rough check for a trailing ":port" in the string.
 func hasPort(s string) bool {
 	for i := len(s) - 1; i >= 0; i-- {
 		if s[i] == ':' {
