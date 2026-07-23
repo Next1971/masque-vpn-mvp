@@ -5,32 +5,32 @@ import (
 	"net/netip"
 )
 
-// Обработка IP-заголовка исходящих пакетов перед проксированием.
+// Processing the IP header of outgoing packets before proxying.
 //
-// Проблема: некоторые ОС (в частности Windows при определённой маршрутизации
-// в TUN) формируют пакеты с TTL=1 (IPv4) / Hop Limit=1 (IPv6). Библиотека
-// connect-ip-go по RFC 9484 при проксировании IP декрементирует TTL и, если
-// он становится 0, ОБЯЗАНА отбросить пакет ("datagram Hop Limit too small: 1").
-// Из-за этого весь трафик клиента дропается ещё до отправки на сервер.
+// Problem: some operating systems (in particular Windows with certain routing
+// setups in TUN) generate packets with TTL=1 (IPv4) / Hop Limit=1 (IPv6).
+// The connect-ip-go library, according to RFC 9484, decrements TTL when
+// proxying IP packets and, if it becomes 0, MUST drop the packet
+// ("datagram Hop Limit too small: 1").
+// As a result, all client traffic gets dropped before it even reaches the server.
 //
-// Решение: перед отправкой поднимаем слишком маленький TTL до безопасного
-// значения (minTTL→64) и пересчитываем контрольную сумму IPv4-заголовка.
-// Это делаем в клиентском ядре, поэтому фикс общий для всех платформ
-// (Linux/Windows/Android). На корректных пакетах (TTL уже нормальный) функция
-// ничего не меняет.
+// Solution: before sending, raise too-small TTL to a safe value (minTTL→64)
+// and recalculate the IPv4 header checksum. This is done in the client core,
+// so the fix applies to all platforms (Linux/Windows/Android).
+// On valid packets (TTL already normal), the function does nothing.
 
 const (
-	// minTTL — если TTL/Hop Limit пакета меньше этого, поднимаем до fixTTL.
-	// Порог 2, т.к. connect-ip декрементирует и требует результат ≥ 1.
+	// minTTL — if a packet's TTL/Hop Limit is below this value, raise it to fixTTL.
+	// Threshold 2, because connect-ip decrements and requires the result to be ≥ 1.
 	minTTL = 2
-	// fixTTL — значение, до которого поднимаем слишком маленький TTL.
+	// fixTTL — value to which too-small TTL is raised.
 	fixTTL = 64
 )
 
-// normalizeTTL проверяет IP-версию пакета и, если TTL/Hop Limit < minTTL,
-// поднимает его до fixTTL. Для IPv4 пересчитывает контрольную сумму заголовка.
-// Возвращает исходный TTL (для диагностики) и признак того, что пакет правился.
-// pkt — полный IP-пакет (начиная с версии/IHL).
+// normalizeTTL checks the IP version and, if TTL/Hop Limit < minTTL,
+// raises it to fixTTL. For IPv4 it recalculates the header checksum.
+// Returns the original TTL (for diagnostics) and whether the packet was modified.
+// pkt is a full IP packet (starting with version/IHL).
 func normalizeTTL(pkt []byte) (origTTL int, fixed bool) {
 	if len(pkt) < 1 {
 		return -1, false
@@ -38,7 +38,7 @@ func normalizeTTL(pkt []byte) (origTTL int, fixed bool) {
 	version := pkt[0] >> 4
 	switch version {
 	case 4:
-		// IPv4: минимальный заголовок 20 байт. TTL — байт 8. Чек-сумма — байты 10-11.
+		// IPv4: minimum header is 20 bytes. TTL is byte 8. Checksum is bytes 10-11.
 		if len(pkt) < 20 {
 			return -1, false
 		}
@@ -47,7 +47,7 @@ func normalizeTTL(pkt []byte) (origTTL int, fixed bool) {
 			return origTTL, false
 		}
 		pkt[8] = fixTTL
-		// Пересчёт контрольной суммы заголовка (по IHL).
+		// Recalculate header checksum (by IHL).
 		ihl := int(pkt[0]&0x0f) * 4
 		if ihl < 20 || ihl > len(pkt) {
 			ihl = 20
@@ -59,8 +59,8 @@ func normalizeTTL(pkt []byte) (origTTL int, fixed bool) {
 		pkt[11] = byte(csum & 0xff)
 		return origTTL, true
 	case 6:
-		// IPv6: фиксированный заголовок 40 байт. Hop Limit — байт 7.
-		// Контрольной суммы в IPv6-заголовке нет.
+		// IPv6: fixed 40-byte header. Hop Limit is byte 7.
+		// There is no checksum in the IPv6 header.
 		if len(pkt) < 40 {
 			return -1, false
 		}
@@ -75,8 +75,8 @@ func normalizeTTL(pkt []byte) (origTTL int, fixed bool) {
 	}
 }
 
-// ipv4Checksum считает контрольную сумму IPv4-заголовка (RFC 791):
-// one's complement суммы 16-битных слов.
+// ipv4Checksum computes the IPv4 header checksum (RFC 791):
+// one's complement sum of 16-bit words.
 func ipv4Checksum(hdr []byte) uint16 {
 	var sum uint32
 	for i := 0; i+1 < len(hdr); i += 2 {
@@ -91,9 +91,9 @@ func ipv4Checksum(hdr []byte) uint16 {
 	return ^uint16(sum)
 }
 
-// describePkt возвращает краткое человекочитаемое описание IP-пакета для логов:
-// версия, src→dst, протокол и TTL/Hop Limit. Используется для диагностики
-// входящего пути conn→TUN.
+// describePkt returns a short human-readable description of an IP packet for logs:
+// version, src→dst, protocol, and TTL/Hop Limit. Used for diagnostics on the
+// incoming conn→TUN path.
 func describePkt(pkt []byte) string {
 	if len(pkt) < 1 {
 		return "empty"
