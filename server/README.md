@@ -2,27 +2,27 @@
 
 Sanitized server-side part of the MASQUE VPN MVP.
 
-## Notes
+## Current status
 
-This directory will contain the public server implementation prepared for publication.
-All private deployment values, infrastructure-specific endpoints, domains, VPS addresses, certificates, keys and secrets are removed before upload.
+The public server materials in this directory correspond to a working MVP server that has remained stable after 15 days of testing. All private deployment values, infrastructure-specific endpoints, domains, VPS addresses, certificates, keys, and secrets are intentionally removed before publication.
 
-## Planned contents
+## Start here
 
-- Basic deployment structure
-- Configuration templates
-- Setup notes
-- Example values with placeholders only
+- `DEPLOYMENT.md` — practical deployment notes for the public MVP server.
+- `DEPLOYMENT.example.md` — sanitized deployment outline with placeholder values.
+- `config.server.example.toml` — example server configuration.
+- `install.example.sh` — example install/update script.
+- `systemd/masque.service.example` — example systemd unit.
 
 ## Source layout
 
-The `server` directory contains both deployment examples and Go source code
-for the MASQUE MVP:
+The `server` directory contains both deployment examples and Go source code for the MASQUE MVP.
 
 - `config.server.example.toml` — example server configuration (TOML).
 - `install.example.sh` — example systemd install/update script.
 - `systemd/masque.service.example` — example systemd unit for the server.
 - `DEPLOYMENT.example.md` — high-level deployment outline.
+- `DEPLOYMENT.md` — practical deployment notes.
 
 Go source code lives under `server/src`:
 
@@ -31,15 +31,9 @@ Go source code lives under `server/src`:
   - `config.go` — TOML config loader and validation.
   - `iface_linux.go` — Linux-specific TUN setup using `ip`.
   - `ippool.go` — thread-safe IPv4 address pool used by the server.
-
-- `src/internal/clientcore/` — shared MASQUE client core used by
-  multiple platforms (Linux/Windows/Android):
+- `src/internal/clientcore/` — shared MASQUE client core used by multiple platforms:
   - `profile.go` — client profile format and TOML loader.
-  - `client.go` — QUIC + HTTP/3 + CONNECT-IP client session and
-    conn↔TUN forwarding.
-  - `iphdr.go` — IP header helpers (TTL/Hop Limit normalization,
-    logging helpers).
+  - `client.go` — QUIC + HTTP/3 + CONNECT-IP client session and tunnel forwarding.
+  - `iphdr.go` — IP header helpers and logging helpers.
 
-The client core does not create TUN devices or modify routes directly.
-Platform-specific wrappers are expected to provide a TUN interface and
-apply routes based on the information from `clientcore.Session`.
+The shared client core does not create TUN devices or modify routes directly. Platform-specific wrappers are expected to provide a TUN interface and apply routes based on information from `clientcore.Session`.
