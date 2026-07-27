@@ -28,3 +28,8 @@
 - No embedded client certificates
 - No private keys
 - No production secrets
+
+## Next steps
+- Update cryptographic and QUIC dependencies to patched versions
+  - Upgrade golang.org/x/crypto and related libraries to the latest secure releases
+  - Rebuild and re-test the Windows client to ensure stability after dependency updates
