@@ -6,7 +6,7 @@ This directory contains the public Windows client sources, build scripts, Web UI
 
 ## Status (July 2026)
 
-- Stable operation for 4 consecutive days.
+- Stable operation for 8 consecutive days.
 - Web UI mode is available for daily use through a local browser interface.
 - CLI mode remains supported for advanced usage and scripting.
 - Recent fixes improved QUIC connection stability, TLS handling with self-signed certificates, and Wintun loading when launched as Administrator.
