@@ -51,6 +51,32 @@ Android sources will be added after removing infrastructure-specific references 
 
 Sensitive infrastructure details, hostnames, VPS addresses, domains and deployment-specific values are intentionally excluded from the public version of this project.
 
+## Research & DPI Resistance
+
+This project is built on top of peer-reviewed standards and recent academic research on active censorship evasion.
+
+- **RFC 9484** — CONNECT-IP: [IP Proxying Support for HTTP](https://datatracker.ietf.org/doc/html/rfc9484)  
+  The core protocol we implement: IP tunneling over HTTP/3 via QUIC.
+
+- **RFC 9298** — MASQUE: [Proxying UDP in HTTP](https://datatracker.ietf.org/doc/html/rfc9298)  
+  Foundation for UDP proxying and datagram transport inside HTTP/3.
+
+- **GFW Report, USENIX Security '25** — [How the Great Firewall Blocks QUIC](https://gfw.report/publications/usenixsecurity25/en/)  
+  Reverse-engineering of GFW's QUIC SNI blocking revealed implementation bugs:  
+  – Flow tracking only activates when `src-port &gt; dst-port`  
+  – No reassembly of fragmented Client Hellos across QUIC CRYPTO frames  
+  – A single decoy UDP packet before the real Initial confuses the state machine  
+  – Degradation under load: up to 80% of connections slip through during daytime flooding  
+  Our stack benefits from these findings natively: we run on high ports, rely on QUIC datagrams, and build on `quic-go` ≥ v0.52.0 which ships SNI-slicing by default.
+
+- **IETF MASQUE Working Group** — [datatracker.ietf.org/wg/masque](https://datatracker.ietf.org/wg/masque/about/)  
+  Official standardization track for MASQUE protocols.
+
+### Related Implementations
+
+- [tmasque](https://github.com/quangtrieu1312/masque-vpn) by quangtrieu1312 — Linux-only MASQUE server with AF_XDP/eBPF datapath.
+- [usque](https://github.com/Diniboy1123/usque) by Diniboy1123 — CLI reimplementation of Cloudflare WARP's MASQUE client.
+
 ## Publication approach
 
 This repository is being published gradually.
