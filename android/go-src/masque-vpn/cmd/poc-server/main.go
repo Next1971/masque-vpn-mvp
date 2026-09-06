@@ -83,6 +83,7 @@ func main() {
 			tunName: c.TUN.Name, tunAddr: c.Network.TunAddr, tunAddrV6: c.Network.TunAddrV6,
 			mtu: c.TUN.MTU, poolCIDR: c.Network.PoolCIDR, poolCIDRV6: c.Network.PoolCIDRV6,
 			route: routePrefix,
+			blocked: loadBlockedSet(c.TLS.BlockedCNs, defaultBlockedFile),
 		}
 		if c.Network.RouteV6 != "" {
 			rp6, err := netip.ParsePrefix(c.Network.RouteV6)
@@ -104,6 +105,7 @@ func main() {
 			tunName: *tunName, tunAddr: *tunAddr, tunAddrV6: *tunAddrV6,
 			mtu: *mtu, poolCIDR: *poolCIDR, poolCIDRV6: *poolCIDRV6,
 			route: routePrefix,
+			blocked: loadBlockedSet(nil, defaultBlockedFile),
 		}
 		if *poolCIDRV6 != "" {
 			rp6, err := netip.ParsePrefix(*routeV6Str)
@@ -133,6 +135,7 @@ type serverConfig struct {
 	mtu                                           int
 	poolCIDR, poolCIDRV6                          string
 	assign, route, routeV6                        netip.Prefix // assign is the fallback when no v4 pool is set
+	blocked                                       map[string]struct{}
 }
 
 // Router demultiplexes packets read from the single shared TUN device to the
@@ -302,6 +305,13 @@ func run(cfg serverConfig) error {
 		log.Printf("IPv6 pool %s ready (server %s reserved)", cfg.poolCIDRV6, serverTun6.Addr())
 	}
 	live := &sessionIndex{byCN: make(map[string]*connectip.Conn)}
+	blocked := cfg.blocked
+	if blocked == nil {
+		blocked = map[string]struct{}{}
+	}
+	if n := len(blocked); n > 0 {
+		log.Printf("CN denylist: %d names (reload requires process restart; file %s)", n, defaultBlockedFile)
+	}
 
 	udpAddr, err := net.ResolveUDPAddr("udp", bind)
 	if err != nil {
@@ -374,6 +384,13 @@ func run(cfg serverConfig) error {
 		if r.TLS != nil && len(r.TLS.PeerCertificates) > 0 {
 			cn = r.TLS.PeerCertificates[0].Subject.CommonName
 			log.Printf("client authenticated via mTLS: CN=%s", cn)
+		}
+		if cn != "" {
+			if _, deny := blocked[cn]; deny {
+				log.Printf("rejected blocked CN=%s", cn)
+				w.WriteHeader(http.StatusForbidden)
+				return
+			}
 		}
 
 		conn, err := p.Proxy(w, req)

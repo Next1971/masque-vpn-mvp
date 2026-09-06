@@ -99,3 +99,7 @@ Android TV boxes frequently have **no file manager**, so importing
   profiles — they are git-ignored. Distribute bundles out-of-band.
 - **Back up `out/ca/ca.key`.** Losing it means you can no longer issue new
   client certificates without re-provisioning every client.
+- **Revoke a leaked bundle** by appending its CN (`masque-client-N`) to
+  `/opt/masque/blocked_cns` and restarting `masque.service` (v1.5.1). This is a
+  denylist, not a CRL. See [server README](../server/README.md#revoking-a-client-cn).
+  `masque-setup.exe` can do the same from Windows.

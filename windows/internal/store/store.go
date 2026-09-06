@@ -92,7 +92,7 @@ func Import(text, filename, extraCA, extraCert, extraKey string) error {
 		p.TUNName = "masque0"
 	}
 	if p.MTU == 0 {
-		p.MTU = 1400
+		p.MTU = 1369
 	}
 	if len(p.DNS) == 0 {
 		p.DNS = []string{"1.1.1.1"}

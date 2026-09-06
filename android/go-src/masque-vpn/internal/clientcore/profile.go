@@ -108,7 +108,7 @@ func (p *Profile) Validate() error {
 		return fmt.Errorf("profile: [server].server_name is required (TLS SNI)")
 	}
 	if p.MTU == 0 {
-		p.MTU = 1400 // sensible default for QUIC/MASQUE
+		p.MTU = 1369 // v1.5.1 default from path MTU tests (see docs/benchmarks/mtu.md)
 	}
 	if p.MTU < 576 || p.MTU > 9000 {
 		return fmt.Errorf("profile: [tun].mtu %d out of range (576..9000)", p.MTU)

@@ -139,7 +139,7 @@ func (p *Pump) setTunErr(err error) {
 func (p *Pump) readConn(ctx context.Context, sess *Session) error {
 	mtu, err := p.dev.MTU()
 	if err != nil || mtu <= 0 {
-		mtu = 1400
+		mtu = 1369
 	}
 	buf := make([]byte, tunOffset+mtu+64)
 	var inCount int
@@ -165,7 +165,7 @@ func (p *Pump) readConn(ctx context.Context, sess *Session) error {
 func (p *Pump) readTUN(ctx context.Context) {
 	mtu, err := p.dev.MTU()
 	if err != nil || mtu <= 0 {
-		mtu = 1400
+		mtu = 1369
 	}
 	batch := p.dev.BatchSize()
 	if batch < 1 {

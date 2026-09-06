@@ -32,7 +32,7 @@ func main() {
 	a.SetIcon(icon)
 	w := a.NewWindow("MASQUE server setup (experimental)")
 	w.SetIcon(icon)
-	w.Resize(fyne.NewSize(640, 720))
+	w.Resize(fyne.NewSize(640, 800))
 
 	sshHost := widget.NewEntry()
 	sshHost.SetPlaceHolder("VPS IP or hostname")
@@ -277,6 +277,47 @@ func main() {
 		}, w)
 	})
 
+	revokeNum := widget.NewEntry()
+	revokeNum.SetPlaceHolder("certificate number, e.g. 7")
+	revokeBtn := widget.NewButton("Revoke certificate…", func() {
+		if busy || cli == nil {
+			dialog.ShowError(fmt.Errorf("connect first"), w)
+			return
+		}
+		n, err := vpssetup.ParseCertNumber(revokeNum.Text)
+		if err != nil {
+			dialog.ShowError(err, w)
+			return
+		}
+		cn, err := vpssetup.ClientCN(n)
+		if err != nil {
+			dialog.ShowError(err, w)
+			return
+		}
+		dialog.ShowConfirm("Revoke "+cn+"?",
+			"Appends this CN to /opt/masque/blocked_cns on the VPS and restarts masque.service. The certificate file is not deleted. After restart the server refuses that CN.",
+			func(ok bool) {
+				if !ok {
+					return
+				}
+				setBusy(true)
+				go func() {
+					defer setBusy(false)
+					lg := func(format string, args ...interface{}) {
+						msg := fmt.Sprintf(format, args...)
+						fyne.Do(func() { logf("%s", msg) })
+					}
+					if err := vpssetup.RevokeClient(cli, n, lg); err != nil {
+						fyne.Do(func() { dialog.ShowError(err, w) })
+						return
+					}
+					if err := vpssetup.RestartMasque(cli, lg); err != nil {
+						fyne.Do(func() { dialog.ShowError(err, w) })
+					}
+				}()
+			}, w)
+	})
+
 	issueBtn := widget.NewButton("Issue next bundle (#9+)…", func() {
 		if busy || cli == nil {
 			dialog.ShowError(fmt.Errorf("connect first"), w)
@@ -332,7 +373,7 @@ func main() {
 	})
 
 	form := container.NewVBox(
-		widget.NewRichTextFromMarkdown("## MASQUE VPS installer (experimental)\n\n**Test / pre-release.** This can break a VPS or leak a root password if you use it carelessly. Do not treat it as a finished product. No certificate revocation."),
+		widget.NewRichTextFromMarkdown("## MASQUE VPS installer (experimental)\n\n**Test / pre-release.** This can break a VPS or leak a root password if you use it carelessly. Do not treat it as a finished product. Compromised client CNs can be revoked (denylist + service restart)."),
 		widget.NewLabel("Ubuntu 22.04/24.04 or Debian 12, as root. If MASQUE is already installed, Connect skips install and opens key issuance."),
 		widget.NewForm(
 			widget.NewFormItem("SSH host", sshHost),
@@ -353,6 +394,8 @@ func main() {
 		issueLabel,
 		issueBtn,
 		saveBtn,
+		widget.NewForm(widget.NewFormItem("Revoke CN number", revokeNum)),
+		revokeBtn,
 		layout.NewSpacer(),
 		widget.NewLabel("Log"),
 		logBox,

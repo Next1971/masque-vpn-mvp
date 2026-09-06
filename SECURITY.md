@@ -24,6 +24,6 @@ Do not include live credentials, private keys, client profiles, or personal data
 
 - Keep all private keys, certificates, tokens, and production profiles out of Git.
 - Verify release checksums when they are published.
-- Rotate credentials immediately if they are exposed.
+- Rotate credentials immediately if they are exposed. On v1.5.1+, append the client certificate CN to `/opt/masque/blocked_cns` and restart `masque.service` (or use **Revoke certificate** in `masque-setup.exe`). That denylist is not a PKI CRL.
 - Apply operating-system and dependency updates promptly.
 - Test changes on a non-production server before deployment.

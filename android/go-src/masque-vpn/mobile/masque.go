@@ -151,7 +151,7 @@ func (t *Tunnel) ServerIPv4() string {
 func profileFromConfig(cfg *Config) *clientcore.Profile {
 	mtu := cfg.MTU
 	if mtu == 0 {
-		mtu = 1400
+		mtu = 1369
 	}
 	return &clientcore.Profile{
 		Server:        cfg.Server,

@@ -212,7 +212,7 @@ client_ca = "/opt/masque/cert/ca.crt"   # mTLS: clients are verified against thi
 
 [tun]
 name = "masque0"
-mtu  = 1400
+mtu  = 1369
 
 [network]
 tun_addr     = "$TUN_ADDR"
@@ -275,7 +275,7 @@ insecure = false
 
 [tun]
 tun_name = "masque0"
-mtu      = 1400
+mtu      = 1369
 dns      = [$DNS_ARR]
 TOML
   fi

@@ -9,7 +9,7 @@ The server tunnels IP traffic over QUIC + HTTP/3 CONNECT-IP and authenticates cl
 - sends QUIC keepalives (`KeepAlivePeriod` 15s, `MaxIdleTimeout` 3 minutes);
 - pins each client certificate CN to a stable tunnel `/32` so Android can reconnect without rebuilding the TUN.
 
-**v1.4** / **v1.4.1** clients talk to the same v1.3+ server protocol (sticky `/32` after reconnect). **v1.4.1** adds optional **Docker** packaging (`server/docker-compose.yml`) and **graceful shutdown** on `SIGTERM`/`SIGINT`. **v1.5** optionally assigns ULA IPv6 (`fd00:8::/64`) inside the tunnel (sticky `/128`) and NAT66s it to the VPS WAN IPv6. IPv4-only configs without the v6 keys keep working. Old Android APKs sink IPv6 instead of forwarding it.
+**v1.4** / **v1.4.1** clients talk to the same v1.3+ server protocol (sticky `/32` after reconnect). **v1.4.1** adds optional **Docker** packaging (`server/docker-compose.yml`) and **graceful shutdown** on `SIGTERM`/`SIGINT`. **v1.5** optionally assigns ULA IPv6 (`fd00:8::/64`) inside the tunnel (sticky `/128`) and NAT66s it to the VPS WAN IPv6. IPv4-only configs without the v6 keys keep working. Old Android APKs sink IPv6 instead of forwarding it. **v1.5.1** adds a CN denylist (`/opt/masque/blocked_cns`) and documents a UDP 443 fallback redirect. New client profiles default TUN MTU **1369**.
 
 > Keep the CA private key, server private key, and client private keys out of Git and distribute client bundles only through a secure channel.
 
@@ -28,7 +28,7 @@ apt-get update
 apt-get install -y git build-essential openssl iptables
 ```
 
-Open the server's UDP port in your firewall and cloud security group. The default is **UDP 4433**. If you choose another port, change it consistently in the server configuration, client profiles, firewall rules, and service setup.
+Open the server's UDP port in your firewall and cloud security group. The default is **UDP 4433**. If you choose another port, change it consistently in the server configuration, client profiles, firewall rules, and service setup. If clients cannot reach **UDP 443**, keep the process bound to 443 and add a VPS redirect — see [UDP 443 blocked on the client path](#udp-443-blocked-on-the-client-path).
 
 ### UDP socket buffers (required)
 
@@ -166,10 +166,12 @@ server_name = "vpn.example.com"    # must match the server certificate CN/SAN
 cert      = "/opt/masque/cert/server.crt"
 key       = "/opt/masque/cert/server.key"
 client_ca = "/opt/masque/cert/ca.crt"   # mTLS: clients verified against this CA
+# Optional extra blocked CNs (v1.5.1). One CN per line is also read from /opt/masque/blocked_cns.
+# blocked_cns = ["masque-client-7"]
 
 [tun]
 name = "masque0"
-mtu  = 1400
+mtu  = 1369
 
 [network]
 tun_addr  = "10.8.0.1/24"    # server address on the tunnel
@@ -183,11 +185,45 @@ route     = "0.0.0.0/0"      # route advertised to clients (0.0.0.0/0 = full tun
 
 IPv6 in the tunnel needs WAN IPv6 on the VPS, `net.ipv6.conf.all.forwarding=1`, and ip6tables MASQUERADE for `fd00:8::/64` on the public interface (see `masque.service`). Clients still connect over IPv4 QUIC; do not publish an AAAA for the VPN hostname until a host-route bypass exists for that address.
 
+### UDP 443 blocked on the client path
+
+Some networks (mobile carriers, hotel Wi-Fi, a few VPS providers on the *egress* side) drop **outbound UDP 443** while other UDP ports still work. The MASQUE listener can stay on UDP 443. On the VPS, open an alternate port and redirect it to 443. **2053** is the usual choice.
+
+```bash
+# Cloud security group + host firewall must allow the alternate UDP port.
+ufw allow 2053/udp
+
+# Keep poc-server bound to 443. Redirect inbound UDP 2053 → 443.
+iptables -t nat -C PREROUTING -p udp --dport 2053 -j REDIRECT --to-ports 443 2>/dev/null \
+  || iptables -t nat -A PREROUTING -p udp --dport 2053 -j REDIRECT --to-ports 443
+
+# Persist on Debian/Ubuntu
+apt-get install -y iptables-persistent
+netfilter-persistent save
+```
+
+Then set the client profile `address` (or `[server].server`) to `your.host:2053`. TLS `server_name` stays the hostname from the certificate. Do **not** change `bind` in `config.server.toml` for this workaround.
+
+v1.5.1 Android still dials **one** port. Dual-port (443 and 2053 at once) is planned for **v1.6**.
+
+### Revoking a client CN
+
+This is a server-side denylist, not a certificate CRL. Append the mTLS Common Name (for example `masque-client-7`) to `/opt/masque/blocked_cns`, one name per line, then restart:
+
+```bash
+printf '%s\n' 'masque-client-7' >> /opt/masque/blocked_cns
+chmod 0644 /opt/masque/blocked_cns
+systemctl restart masque.service
+```
+
+`masque-setup.exe` (v1.5.1) does the same from Windows. The process reads the file at **start**; a live session for that CN is dropped on restart. The certificate files are not deleted.
+
 ## Troubleshooting
 
 | Symptom | Checks |
 |---|---|
-| No connection | Confirm UDP 4433 is open in the VPS firewall and cloud firewall; check DNS/IP, service status, and certificate SAN |
+| No connection | Confirm the UDP port in the **profile** is open in the VPS firewall and cloud firewall; if that port is 443 and packets never arrive, use [UDP 443 blocked on the client path](#udp-443-blocked-on-the-client-path) |
+| HTTP 403 / rejected blocked CN | CN is in `/opt/masque/blocked_cns` or `tls.blocked_cns`; restart after editing the file |
 | Service fails to start | Run `systemctl status masque.service --no-pager` and `journalctl -u masque -f` |
 | Connected but slow / high loss | Confirm `sysctl net.core.rmem_max` and `wmem_max` are **67108864** (64 MiB); see [UDP socket buffers](#udp-socket-buffers-required) |
 | Connected but no internet | Check forwarding, the interface name in `masque.service`, iptables NAT, and routes |

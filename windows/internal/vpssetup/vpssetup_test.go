@@ -108,3 +108,20 @@ func TestValidateHost(t *testing.T) {
 		t.Fatal("ssh port")
 	}
 }
+
+func TestParseCertNumber(t *testing.T) {
+	n, err := ParseCertNumber(" 7 ")
+	if err != nil || n != 7 {
+		t.Fatalf("%d %v", n, err)
+	}
+	cn, err := ClientCN(7)
+	if err != nil || cn != "masque-client-7" {
+		t.Fatalf("%s %v", cn, err)
+	}
+	if _, err := ParseCertNumber("x"); err == nil {
+		t.Fatal("expected reject")
+	}
+	if _, err := ClientCN(0); err == nil {
+		t.Fatal("expected reject")
+	}
+}

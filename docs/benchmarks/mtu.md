@@ -21,7 +21,7 @@ Rationale:
 - The lowest successful tested path is Android mobile data on MTS: MTU 1370 passes, while MTU 1380 has 100% DF-probe loss.
 - Selecting 1369 keeps a 1-byte margin below that observed lower boundary.
 
-This is a conservative interim recommendation, not a universal PMTU guarantee. Revisit it after Windows tests, additional carriers and networks, and any MTU/PMTU handling changes.
+This is a conservative interim recommendation, not a universal PMTU guarantee. **v1.5.1** ships TUN MTU **1369** as the client default. Revisit it after more carriers and any MTU/PMTU handling changes.
 
 ## Summary
 

@@ -4,6 +4,26 @@ All notable changes to MASQUE VPN are documented here.
 
 ## [Unreleased]
 
+## [v1.5.1] - 2026-09-06
+
+**GitHub pre-release.** Maintenance line after v1.5.0. Same CONNECT-IP protocol; existing profiles keep working. v1.5.0 remains **Latest**.
+
+### Added
+
+- Server CN denylist: `/opt/masque/blocked_cns` (one Common Name per line) plus optional `tls.blocked_cns` in `config.server.toml`. Reload requires a process restart.
+- `masque-setup.exe`: **Revoke certificate** writes the CN to that file and restarts `masque.service`.
+- Documented VPS UDP redirect when outbound **UDP 443** is dropped: listen on 443, DNAT/REDIRECT an alternate port (typically **2053**) to 443, point the client profile at `:2053`.
+
+### Changed
+
+- Client tunnel MTU default **1369** (Android `versionCode` 18, Windows product **1.5.1**, new `gen-config.sh` profiles). Chosen from path MTU tests: MTS mobile data DF-safe at 1370, loss at 1380; one-byte margin. See `docs/benchmarks/mtu.md`.
+- Docker image tag `masque-vpn-server:1.5.1`.
+
+### Notes
+
+- First successful **iOS** on-device result. No iOS binary is attached to this GitHub release. TestFlight access is planned for **v1.6** (not later than **12 October 2026**).
+- Android simultaneous dual-port (UDP 443 and the alternate port at once) is planned for **v1.6**. Until then use the VPS redirect and a single port in the profile.
+
 ## [v1.5.0] - 2026-08-30
 
 **GitHub Latest release.** Optional **IPv6 inside the tunnel**. Existing IPv4-only server configs (no `tun_addr_v6` / `pool_cidr_v6`) behave as before. Client profiles do not change. QUIC to the server stays on IPv4; do not add an AAAA for the VPN hostname in this release.

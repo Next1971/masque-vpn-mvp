@@ -52,7 +52,7 @@ class MasqueVpnService : VpnService() {
         // drops them and DNS never reaches 1.1.1.1.
         const val TUN_PREFIX = 24
         const val TUN_PREFIX_V6 = 64
-        const val TUN_MTU = 1400
+        const val TUN_MTU = 1369
     }
 
     private var tunnel: Tunnel? = null

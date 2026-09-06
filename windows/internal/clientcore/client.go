@@ -206,7 +206,7 @@ func (s *Session) Run(ctx context.Context) error {
 	errCh := make(chan error, 2)
 	mtu, err := s.dev.MTU()
 	if err != nil || mtu <= 0 {
-		mtu = 1400
+		mtu = 1369
 	}
 
 	// conn → TUN: write packets from the server (responses from the internet)

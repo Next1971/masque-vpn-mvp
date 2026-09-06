@@ -22,9 +22,10 @@ type ServerSection struct {
 }
 
 type TLSSection struct {
-	Cert     string `toml:"cert"`
-	Key      string `toml:"key"`
-	ClientCA string `toml:"client_ca"` // empty = no mTLS
+	Cert       string   `toml:"cert"`
+	Key        string   `toml:"key"`
+	ClientCA   string   `toml:"client_ca"`  // empty = no mTLS
+	BlockedCNs []string `toml:"blocked_cns"` // optional extra CNs; also /opt/masque/blocked_cns
 }
 
 type TUNSection struct {
@@ -71,7 +72,7 @@ func (c *Config) validate() error {
 		return fmt.Errorf("tun.name is required")
 	}
 	if c.TUN.MTU <= 0 {
-		c.TUN.MTU = 1400
+		c.TUN.MTU = 1369
 	}
 	if c.Network.TunAddr == "" {
 		return fmt.Errorf("network.tun_addr is required")

@@ -2,7 +2,7 @@
 
 Windows helper that SSHes to a VPS as root and can install MASQUE or issue `profile.masque` files.
 
-This is a **test / pre-release**. It is not a finished product. It can change the VPS (packages, firewall, systemd). There is **no certificate revocation**. Use only on a machine you can rebuild.
+This is a **test / pre-release**. It is not a finished product. It can change the VPS (packages, firewall, systemd). Compromised client CNs can be **revoked** (append to `/opt/masque/blocked_cns` and restart `masque.service`). Use only on a machine you can rebuild.
 
 ## Layout (required)
 
