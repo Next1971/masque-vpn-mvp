@@ -16,11 +16,12 @@ This is not a commercial VPN brand and not an audited enterprise client. It is a
 ## Release status
 
 - **Latest:** [v1.5.0](../../releases/tag/v1.5.0) — optional IPv6 inside the tunnel (MSI, signed APKs, Linux server binaries)
-- **v1.5.1 (pre-release):** technical follow-up — CN denylist / Windows revoke, TUN MTU **1369**, UDP 443 VPS redirect. Same protocol as v1.5.0; existing profiles keep working.
+- **v1.5.2 (pre-release):** optional **kill switch** on Android and Windows (default off). Same protocol; no server binary change.
+- **v1.5.1 (pre-release):** CN denylist / Windows revoke, TUN MTU **1369**, UDP 443 VPS redirect.
 - v1.4.1: maintenance pre-release (Docker, graceful shutdown, Android IPv6 leak protection)
 - v1.4.2: experimental Windows VPS Setup Helper (superseded for revoke by v1.5.1 `masque-setup.exe`)
 
-  Do not download v1.4.2 expecting a newer Android or Windows VPN client. What is next lives in the [roadmap](docs/ROADMAP.md) (**v1.6** not later than **12 October 2026**, including TestFlight and Android dual-port).
+  Do not download v1.4.2 expecting a newer Android or Windows VPN client. What is next lives in the [roadmap](docs/ROADMAP.md) (**v1.5.3** dual-port/DoH, **v1.6** TestFlight not later than **12 October 2026**).
 
 ## Is this for me?
 
@@ -48,6 +49,7 @@ Do not use it if you:
 | Goal | Start here |
 |---|---|
 | Download Latest (v1.5.0) | [GitHub Release](../../releases/latest) |
+| Download v1.5.2 pre-release | [v1.5.2](../../releases/tag/v1.5.2) |
 | Download v1.5.1 pre-release | [v1.5.1](../../releases/tag/v1.5.1) |
 | Deploy a Linux server | [Detailed server guide](server/README.md) |
 | Connect from Android | [Android guide](android/README.md) |
