@@ -6,7 +6,7 @@ All notable changes to MASQUE VPN are documented here.
 
 ## [v1.5.2] - 2026-09-09
 
-**GitHub pre-release (in progress).** Optional **kill switch** on Android and Windows. Same CONNECT-IP protocol; existing profiles keep working. Default is **off**.
+**GitHub pre-release.** Optional **kill switch** on Android and Windows. Same CONNECT-IP protocol; existing profiles keep working. Default is **off**. v1.5.0 remains **Latest**.
 
 ### Added
 

@@ -8,7 +8,7 @@ From **v1.3.1** the normal install is a per-machine **MSI**: a **LocalSystem** s
 
 ## Install from a release (recommended)
 
-1. Download `masque-1.5.1.msi` from the [v1.5.1 pre-release](../../releases/tag/v1.5.1), or `masque-1.5.0.msi` from [v1.5.0](../../releases/tag/v1.5.0) ([Latest](../../releases/latest)).
+1. Download `masque-1.5.2.msi` from the [v1.5.2 pre-release](../../releases/tag/v1.5.2), or `masque-1.5.0.msi` from [v1.5.0](../../releases/tag/v1.5.0) ([Latest](../../releases/latest)).
 2. Run the installer (one UAC prompt). It installs `MasqueVpn` (auto-start), `wintun.dll`, `masque-gui.exe`, and `vpn-client.exe` under `C:\Program Files\MASQUE`.
 3. Open **MASQUE VPN** from the Start menu (no admin).
 4. **Import profile**: `profile.masque` (same single-file bundle as Android).
