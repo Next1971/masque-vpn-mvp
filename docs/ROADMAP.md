@@ -1,19 +1,19 @@
 # Roadmap
 
-> Status snapshot: last updated 2026-09-06. See [CHANGELOG.md](../CHANGELOG.md) for release history.
+> Status snapshot: last updated 2026-09-09. See [CHANGELOG.md](../CHANGELOG.md) for release history.
 
 ## Current status
 
-MASQUE VPN has been operational and tested end-to-end since **July 15, 2026** across all three components (server, Windows client, Android client). **v1.0** was publicly released on **August 14, 2026**. **v1.3** is the Android reconnect release. **v1.4** added client polish (icon + on-screen ping). **v1.4.1** (pre-release) is a maintenance line: AGP 9 / Gradle 9, Docker packaging, graceful server shutdown, and Android IPv6-bypass hardening. **v1.5.0** adds optional dual-stack inside the tunnel (ULA + NAT66). **v1.5.1** (pre-release) is a technical follow-up: CN denylist / Windows revoke, TUN MTU **1369**, and a documented UDP 443 workaround.
+MASQUE VPN has been operational and tested end-to-end since **July 15, 2026** across all three components (server, Windows client, Android client). **v1.0** was publicly released on **August 14, 2026**. **v1.3** is the Android reconnect release. **v1.4** added client polish (icon + on-screen ping). **v1.4.1** (pre-release) is a maintenance line: AGP 9 / Gradle 9, Docker packaging, graceful server shutdown, and Android IPv6-bypass hardening. **v1.5.0** adds optional dual-stack inside the tunnel (ULA + NAT66). **v1.5.1** (pre-release) is a technical follow-up: CN denylist / Windows revoke, TUN MTU **1369**, and a documented UDP 443 workaround. **v1.5.2** is the kill-switch line (optional, default off).
 
 **v1.6** is scheduled **not later than 12 October 2026**.
 
 | Component | Status | Notes |
 |---|---|---|
 | Server | Stable | QUIC keepalive, sticky `/32` and optional sticky `/128`, mTLS, CN denylist (`blocked_cns`), systemd, optional Docker, graceful SIGTERM |
-| Windows client | Stable | Signed EXE + Wintun DLL in release, GUI + tray icon, on-screen ping, IPv6 default via TUN when the server assigns v6, MTU 1369 |
+| Windows client | Stable | Signed EXE + Wintun DLL in release, GUI + tray icon, on-screen ping, optional kill switch (v1.5.2), IPv6 default via TUN when the server assigns v6, MTU 1369 |
 | Windows VPS installer | **Experimental (v1.5.1)** | `masque-setup.exe` can issue bundles and **revoke** a CN; not a substitute for the documented SSH install |
-| Android client | Stable | Phone + TV; dual-stack TUN when the server has a v6 pool; TUN MTU 1369; version label in UI; reconnect without tearing TUN |
+| Android client | Stable | Phone + TV; dual-stack TUN when the server has a v6 pool; TUN MTU 1369; optional kill switch (v1.5.2); version label in UI; reconnect without tearing TUN |
 | iOS client | **In progress (v1.6)** | First on-device success; not in a GitHub Release; TestFlight access planned for v1.6 |
 
 This is experimental software and has not received an independent security audit.
@@ -73,21 +73,37 @@ This is experimental software and has not received an independent security audit
 ## Known limitations (all platforms)
 
 - Connecting to the VPN server is still **IPv4 QUIC** (no AAAA / UDP 443 on IPv6 for the control plane in this release).
-- Some networks drop outbound **UDP 443**. Use an alternate UDP port with VPS DNAT (see [server README](../server/README.md#udp-443-blocked-on-the-client-path)). Android will not dial two ports at once until v1.6.
+- Some networks drop outbound **UDP 443**. Use an alternate UDP port with VPS DNAT (see [server README](../server/README.md#udp-443-blocked-on-the-client-path)). Android will not dial two ports at once until v1.5.3.
 - In-tunnel DNS is plaintext UDP:53 — hidden from the local ISP but visible to the server operator. DoH/DoT is planned.
 - Single server/profile per client — no profile list or automatic failover.
+- Optional kill switch (v1.5.2) does not survive a killed VPN process.
 - No independent security audit yet.
 - Some OEM battery savers ignore the exemption dialog; a killed process still needs a manual Connect.
 - NAT64/DNS64 is not included: AAAA destinations need WAN IPv6 on the VPS.
 - CN denylist is not a CRL/OCSP PKI: it is a server-side name list reloaded on process start.
 
+## Completed (v1.5.2)
+
+- [x] Optional kill switch on Android (`setBlocking` + held TUN) and Windows (routes before dial, held until Disconnect). Default off.
+
+## Planned for v1.5.3
+
+- [ ] Android dual-port: attempt UDP 443 and the alternate listen port at the same time.
+- [ ] DNS over HTTPS/TLS (DoH/DoT) inside the tunnel.
+- [ ] Dependency review / bump for quic-go / connect-ip-go (bump first, e2e, then the features).
+
+## Planned for v1.5.4
+
+- [ ] Server `install.sh`, SHA256SUMS, Sigstore attestations on release artifacts.
+
+## Planned for v1.5.5
+
+- [ ] QUIC to the server over IPv6 (AAAA + host-route bypass).
+
 ## Planned for v1.6 (not later than 12 October 2026)
 
 - [ ] iOS TestFlight access (source already in `ios/`; first on-device connect succeeded; no GitHub IPA in 1.5.1).
-- [ ] Android dual-port: attempt UDP 443 and the alternate listen port at the same time.
-- [ ] DNS over HTTPS/TLS (DoH/DoT) inside the tunnel.
-- [ ] Dependency review process for quic-go / connect-ip-go version pinning (see notes below).
-- [ ] QUIC to the server over IPv6 (AAAA + host-route bypass).
+- [ ] Client/installer visual refresh can land whenever it is ready; store listings follow that UI.
 
 ## Dependency notes
 

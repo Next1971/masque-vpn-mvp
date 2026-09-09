@@ -9,6 +9,7 @@ import android.net.VpnService
 import android.os.Build
 import android.os.Bundle
 import android.widget.Button
+import android.widget.CheckBox
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -83,6 +84,12 @@ class MainActivity : ComponentActivity() {
 
         findViewById<Button>(R.id.btnImport).setOnClickListener {
             pickProfile.launch("*/*")
+        }
+
+        val killSwitch = findViewById<CheckBox>(R.id.chkKillSwitch)
+        killSwitch.isChecked = ProfileStore.killSwitch(this)
+        killSwitch.setOnCheckedChangeListener { _, checked ->
+            ProfileStore.setKillSwitch(this, checked)
         }
 
         connectBtn.setOnClickListener {

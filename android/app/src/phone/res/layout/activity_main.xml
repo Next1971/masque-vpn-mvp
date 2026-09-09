@@ -51,6 +51,13 @@
         android:id="@+id/btnConnect"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Connect" />
+        android:text="Connect"
+        android:layout_marginBottom="16dp" />
+
+    <CheckBox
+        android:id="@+id/chkKillSwitch"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Kill switch (block internet if the tunnel drops)" />
 
 </LinearLayout>

@@ -51,6 +51,16 @@ object ProfileStore {
     private const val TAG = "MasqueProfile"
     private const val PREFS = "masque"
     private const val KEY_CONFIGURED = "configured"
+    private const val KEY_KILL_SWITCH = "kill_switch"
+
+    /** Block internet while the VPN session is up but the tunnel is down. Default off. */
+    fun killSwitch(ctx: Context): Boolean =
+        ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KEY_KILL_SWITCH, false)
+
+    fun setKillSwitch(ctx: Context, enabled: Boolean) {
+        ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putBoolean(KEY_KILL_SWITCH, enabled).apply()
+    }
 
     fun isConfigured(ctx: Context): Boolean =
         ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KEY_CONFIGURED, false) &&

@@ -4,6 +4,20 @@ All notable changes to MASQUE VPN are documented here.
 
 ## [Unreleased]
 
+## [v1.5.2] - 2026-09-09
+
+**GitHub pre-release (in progress).** Optional **kill switch** on Android and Windows. Same CONNECT-IP protocol; existing profiles keep working. Default is **off**.
+
+### Added
+
+- Android phone/TV: checkbox **Kill switch**. While the VPN session is up, `VpnService.setBlocking(true)` and a held TUN so apps cannot fall back to the underlay if the QUIC session dies. Disconnect still tears the TUN down.
+- Windows GUI/service: the same toggle in `settings.json` (`kill_switch`). Routes go up before the first dial; they stay until **Disconnect**, so a dead tunnel blackholes traffic instead of restoring the physical default gateway.
+
+### Notes
+
+- Kill switch does not survive a killed VPN process (OEM battery saver, `taskkill`). On Android, also enable system **Always-on VPN** and **Block connections without VPN**.
+- Changing the checkbox while already connected applies on the next Connect (Android blocking flag is set when TUN is established).
+
 ## [v1.5.1] - 2026-09-06
 
 **GitHub pre-release.** Maintenance line after v1.5.0. Same CONNECT-IP protocol; existing profiles keep working. v1.5.0 remains **Latest**.

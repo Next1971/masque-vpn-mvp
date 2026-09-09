@@ -74,6 +74,17 @@
         android:text="Connect"
         android:textSize="22sp"
         android:textStyle="bold"
-        android:nextFocusUp="@+id/tvBtnClipboard" />
+        android:nextFocusUp="@+id/tvBtnClipboard"
+        android:nextFocusDown="@+id/tvChkKillSwitch"
+        android:layout_marginBottom="20dp" />
+
+    <CheckBox
+        android:id="@+id/tvChkKillSwitch"
+        android:layout_width="520dp"
+        android:layout_height="wrap_content"
+        android:text="Kill switch (block internet if the tunnel drops)"
+        android:textColor="@color/tv_text_primary"
+        android:textSize="18sp"
+        android:nextFocusUp="@+id/tvBtnConnect" />
 
 </LinearLayout>

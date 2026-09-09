@@ -57,6 +57,8 @@ class MasqueVpnService : VpnService() {
 
     private var tunnel: Tunnel? = null
     private var pfd: ParcelFileDescriptor? = null
+    private var userStop = false
+    private var retryPosted = false
     private var networksRegistered = false
     private var underlying: Network? = null
     private val rttHandler = Handler(Looper.getMainLooper())
@@ -99,10 +101,15 @@ class MasqueVpnService : VpnService() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_DISCONNECT -> {
+                userStop = true
+                rttHandler.removeCallbacksAndMessages(null)
                 stopVpn()
                 return START_NOT_STICKY
             }
-            else -> startVpn()
+            else -> {
+                userStop = false
+                startVpn()
+            }
         }
         return START_STICKY
     }
@@ -147,6 +154,10 @@ class MasqueVpnService : VpnService() {
             }
             override fun onError(msg: String?) {
                 Log.e(TAG, "fatal: $msg")
+                if (!userStop && ProfileStore.killSwitch(this@MasqueVpnService) && pfd != null) {
+                    holdKillSwitch("Kill switch: traffic blocked, reconnecting")
+                    return
+                }
                 broadcast("Error: $msg")
                 stopVpn()
             }
@@ -156,48 +167,54 @@ class MasqueVpnService : VpnService() {
             val t = Mobile.dial(cfg, cb)
             tunnel = t
 
-            var addr = t.assignedAddr()
-            if (addr.isNullOrEmpty()) {
-                Log.w(TAG, "server assigned no address; using fallback $TUN_ADDR_FALLBACK")
-                addr = TUN_ADDR_FALLBACK
-            }
-            Log.i(TAG, "building TUN $addr/$TUN_PREFIX (server assigned /${t.assignedPrefixLen()})")
+            val existing = pfd
+            if (existing == null) {
+                var addr = t.assignedAddr()
+                if (addr.isNullOrEmpty()) {
+                    Log.w(TAG, "server assigned no address; using fallback $TUN_ADDR_FALLBACK")
+                    addr = TUN_ADDR_FALLBACK
+                }
+                Log.i(TAG, "building TUN $addr/$TUN_PREFIX (server assigned /${t.assignedPrefixLen()})")
 
-            val builder = Builder()
-                .setSession("MASQUE")
-                .setMtu(TUN_MTU)
-                .addAddress(addr, TUN_PREFIX)
-                .addRoute("0.0.0.0", 0)
-                .addRoute("::", 0)
-                .addDnsServer(prof.dns)
-            val v6 = t.assignedAddrV6()
-            if (!v6.isNullOrEmpty()) {
-                builder.addAddress(v6, TUN_PREFIX_V6)
-                Log.i(TAG, "TUN IPv6 $v6/$TUN_PREFIX_V6")
+                val builder = Builder()
+                    .setSession("MASQUE")
+                    .setMtu(TUN_MTU)
+                    .setBlocking(ProfileStore.killSwitch(this))
+                    .addAddress(addr, TUN_PREFIX)
+                    .addRoute("0.0.0.0", 0)
+                    .addRoute("::", 0)
+                    .addDnsServer(prof.dns)
+                val v6 = t.assignedAddrV6()
+                if (!v6.isNullOrEmpty()) {
+                    builder.addAddress(v6, TUN_PREFIX_V6)
+                    Log.i(TAG, "TUN IPv6 $v6/$TUN_PREFIX_V6")
+                } else {
+                    // No IPv6 in the tunnel: sink so apps cannot bypass on dual-stack networks.
+                    builder.addAddress("fd00::1", 128)
+                }
+                if (prof.dns != "8.8.8.8") {
+                    builder.addDnsServer("8.8.8.8")
+                }
+
+                try {
+                    builder.addDisallowedApplication(packageName)
+                } catch (e: Exception) {
+                    Log.w(TAG, "addDisallowedApplication: ${e.message}")
+                }
+
+                val iface = builder.establish()
+                if (iface == null) {
+                    Log.e(TAG, "establish() returned null (VPN permission?)")
+                    broadcast("Error: VPN permission unavailable")
+                    stopVpn()
+                    return
+                }
+                pfd = iface
+                t.startWithFD(iface.fd.toLong())
             } else {
-                // No IPv6 in the tunnel: sink so apps cannot bypass on dual-stack networks.
-                builder.addAddress("fd00::1", 128)
+                Log.i(TAG, "reusing TUN fd after kill-switch hold")
+                t.startWithFD(existing.fd.toLong())
             }
-            if (prof.dns != "8.8.8.8") {
-                builder.addDnsServer("8.8.8.8")
-            }
-
-            try {
-                builder.addDisallowedApplication(packageName)
-            } catch (e: Exception) {
-                Log.w(TAG, "addDisallowedApplication: ${e.message}")
-            }
-
-            val iface = builder.establish()
-            if (iface == null) {
-                Log.e(TAG, "establish() returned null (VPN permission?)")
-                broadcast("Error: VPN permission unavailable")
-                stopVpn()
-                return
-            }
-            pfd = iface
-
-            t.startWithFD(iface.fd.toLong())
             registerUnderlyingNetworks()
             protectUdp()
             isRunning = true
@@ -207,9 +224,38 @@ class MasqueVpnService : VpnService() {
             rttHandler.post(rttTick)
         } catch (e: Exception) {
             Log.e(TAG, "connect failed", e)
+            if (!userStop && ProfileStore.killSwitch(this) && pfd != null) {
+                holdKillSwitch("Kill switch: traffic blocked, reconnecting")
+                return
+            }
             broadcast("Connection error: ${e.message}")
             stopVpn()
         }
+    }
+
+    /** Keep the VpnService TUN so apps cannot fall back to the underlay. */
+    private fun holdKillSwitch(msg: String) {
+        isRunning = true
+        try {
+            tunnel?.stop()
+        } catch (e: Exception) {
+            Log.w(TAG, "tunnel.stop: ${e.message}")
+        }
+        tunnel = null
+        broadcast(msg)
+        updateNotification(msg)
+        rttHandler.removeCallbacks(rttTick)
+        scheduleRetry()
+    }
+
+    private fun scheduleRetry() {
+        if (userStop || retryPosted) return
+        retryPosted = true
+        rttHandler.postDelayed({
+            retryPosted = false
+            if (userStop || tunnel != null) return@postDelayed
+            startVpn()
+        }, 2000)
     }
 
     private fun registerUnderlyingNetworks() {
@@ -295,7 +341,9 @@ class MasqueVpnService : VpnService() {
 
     private fun tearDownTunnel(stopService: Boolean) {
         isRunning = false
+        retryPosted = false
         rttHandler.removeCallbacks(rttTick)
+        rttHandler.removeCallbacksAndMessages(null)
         unregisterUnderlyingNetworks()
         try {
             tunnel?.stop()

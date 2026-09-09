@@ -4,7 +4,7 @@ A minimal Android VPN client on the same Go core (`clientcore`) as Windows/Linux
 
 The core is an `.aar` from **gomobile**. Kotlin supplies `VpnService`, a small UI, and profile import.
 
-**v1.3** added QUIC keepalives, a battery-exemption prompt, reconnect without tearing the TUN, and Wi-Fi → LTE recovery (sticky `/32` on the server). **v1.3.1** added **Paste config from clipboard** on Android TV. **v1.4** added the app icon and on-screen **Ping**. **v1.4.1** bumps the Android toolchain (AGP 9 / Gradle 9), shows the **version** in the UI, sinks IPv6 so apps cannot bypass the VPN, and uses TUN `/24` on-link. **v1.5.0** forwards IPv6 through the tunnel when the server assigns a ULA address. **v1.5.1** sets TUN MTU to **1369** from path MTU tests. Dual-port (UDP 443 and an alternate port at once) is planned for **v1.6**.
+**v1.3** added QUIC keepalives, a battery-exemption prompt, reconnect without tearing the TUN, and Wi-Fi → LTE recovery (sticky `/32` on the server). **v1.3.1** added **Paste config from clipboard** on Android TV. **v1.4** added the app icon and on-screen **Ping**. **v1.4.1** bumps the Android toolchain (AGP 9 / Gradle 9), shows the **version** in the UI, sinks IPv6 so apps cannot bypass the VPN, and uses TUN `/24` on-link. **v1.5.0** forwards IPv6 through the tunnel when the server assigns a ULA address. **v1.5.1** sets TUN MTU to **1369** from path MTU tests. **v1.5.2** adds an optional **kill switch** (default off). Dual-port (UDP 443 and an alternate port at once) is planned for **v1.5.3**.
 
 Use a **release APK** if you only want to connect. The rest of this file is for building from source.
 
@@ -147,8 +147,9 @@ Outputs land under `app/build/outputs/apk/` (e.g. `phone/debug/app-phone-debug.a
 
 - One server/profile (no list). UI is intentionally small.
 - Tunnel DNS is plaintext UDP:53 (hidden from the local ISP, visible on the server).
+- Kill switch (v1.5.2) only lasts while the VPN app/service is running. Enable Android **Always-on VPN** / **Block connections without VPN** if a killed process must stay blocked.
 - Some OEM battery savers ignore the exemption dialog; if the process is killed, Connect again.
 - Phone and TV are separate APKs (build the **phone** or **tv** flavor in Studio).
-- One UDP port per profile. If the path drops UDP 443, use the [VPS redirect](../server/README.md#udp-443-blocked-on-the-client-path) and put `:2053` (or your alternate) in the profile. Simultaneous dual-port is planned for **v1.6**.
+- One UDP port per profile. If the path drops UDP 443, use the [VPS redirect](../server/README.md#udp-443-blocked-on-the-client-path) and put `:2053` (or your alternate) in the profile. Simultaneous dual-port is planned for **v1.5.3**.
 
 Android stability tests for this line are complete (including **8 hours** of airplane mode, after which the tunnel came back cleanly). Other platform limits are listed in the [roadmap](../docs/ROADMAP.md).
