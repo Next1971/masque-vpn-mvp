@@ -12,6 +12,7 @@ import android.os.Build
 import android.os.Bundle
 import android.view.View
 import android.widget.Button
+import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
@@ -76,6 +77,13 @@ class TvMainActivity : ComponentActivity() {
         setupTvFocusAnimation(pasteBtn)
         setupTvFocusAnimation(clipboardBtn)
         setupTvFocusAnimation(connectBtn)
+
+        val killSwitch = findViewById<CheckBox>(R.id.tvChkKillSwitch)
+        killSwitch.isChecked = ProfileStore.killSwitch(this)
+        killSwitch.setOnCheckedChangeListener { _, checked ->
+            ProfileStore.setKillSwitch(this, checked)
+        }
+        setupTvFocusAnimation(killSwitch)
 
         connectBtn.setOnClickListener {
             if (connected) {

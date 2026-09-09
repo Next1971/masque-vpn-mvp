@@ -150,6 +150,7 @@ func handle(eng *engine.Engine, req ipc.Request) ipc.Response {
 		Detail:      snap.Detail,
 		Configured:  snap.Configured,
 		Autoconnect: snap.Autoconnect,
+		KillSwitch:  snap.KillSwitch,
 		AssignedIP:  snap.AssignedIP,
 		RTTMs:       snap.RTTMs,
 	}
@@ -174,7 +175,7 @@ func handle(eng *engine.Engine, req ipc.Request) ipc.Response {
 			resp.Error = err.Error()
 			return resp
 		}
-        snap = eng.Snapshot()
+		snap = eng.Snapshot()
 		resp.State = snap.State
 		resp.Detail = snap.Detail
 		resp.AssignedIP = snap.AssignedIP
@@ -197,6 +198,19 @@ func handle(eng *engine.Engine, req ipc.Request) ipc.Response {
 			return resp
 		}
 		resp.Autoconnect = *req.Autoconnect
+		return resp
+	case ipc.CmdSetKillSwitch:
+		if req.KillSwitch == nil {
+			resp.OK = false
+			resp.Error = "missing kill_switch"
+			return resp
+		}
+		if err := eng.SetKillSwitch(*req.KillSwitch); err != nil {
+			resp.OK = false
+			resp.Error = err.Error()
+			return resp
+		}
+		resp.KillSwitch = *req.KillSwitch
 		return resp
 	default:
 		resp.OK = false

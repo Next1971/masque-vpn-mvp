@@ -8,6 +8,7 @@ const (
 	CmdDisconnect     = "disconnect"
 	CmdStatus         = "status"
 	CmdSetAutoconnect = "set_autoconnect"
+	CmdSetKillSwitch  = "set_kill_switch"
 
 	StateDisconnected = "disconnected"
 	StateConnecting   = "connecting"
@@ -27,6 +28,7 @@ type Request struct {
 	Cert        string `json:"cert,omitempty"`
 	Key         string `json:"key,omitempty"`
 	Autoconnect *bool  `json:"autoconnect,omitempty"`
+	KillSwitch  *bool  `json:"kill_switch,omitempty"`
 }
 
 type Response struct {
@@ -38,6 +40,7 @@ type Response struct {
 	Detail      string `json:"detail,omitempty"`
 	Configured  bool   `json:"configured"`
 	Autoconnect bool   `json:"autoconnect"`
+	KillSwitch  bool   `json:"kill_switch"`
 	AssignedIP  string `json:"assigned_ip,omitempty"`
 	RTTMs       int64  `json:"rtt_ms,omitempty"`
 }

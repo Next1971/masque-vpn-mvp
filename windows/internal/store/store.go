@@ -14,6 +14,7 @@ import (
 
 type Settings struct {
 	Autoconnect bool `json:"autoconnect"`
+	KillSwitch  bool `json:"kill_switch"`
 }
 
 func Dir() string {
@@ -58,6 +59,12 @@ func SaveSettings(s Settings) error {
 		return err
 	}
 	return os.WriteFile(settingsPath(), b, 0600)
+}
+
+func SetKillSwitch(v bool) error {
+	s := LoadSettings()
+	s.KillSwitch = v
+	return SaveSettings(s)
 }
 
 func SetAutoconnect(v bool) error {

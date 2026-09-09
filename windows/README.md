@@ -185,7 +185,7 @@ For a real VPN in console mode you only need `-profile` and `-full-route` (with 
 
 - `internal/clientcore` dials QUIC, does mTLS, opens CONNECT-IP, and forwards packets. It does not edit the OS routing table.
 - `masque-svc.exe` owns Wintun, routes (`0.0.0.0/0` plus a host route to the server via the original gateway so QUIC does not loop), DNS on `masque0`, and reconnect. Keepalives match the server (15s / 3 min idle, **v1.3**).
-- `masque-gui.exe` sends import / connect / disconnect / autoconnect over IPC and shows status, assigned IP, and ping.
+- `masque-gui.exe` sends import / connect / disconnect / autoconnect / kill switch over IPC and shows status, assigned IP, and ping.
 
 ---
 
@@ -209,6 +209,7 @@ For a real VPN in console mode you only need `-profile` and `-full-route` (with 
 ## Limitations
 
 - In-tunnel DNS is plaintext UDP:53 (hidden from the local ISP, visible at the server).
+- Kill switch (v1.5.2, optional) blackholes traffic while the MASQUE service is running and Connect has been requested. Stopping the service or killing the process restores the normal default route.
 - Single server/profile per machine.
 
 Other platform limits are listed in the [roadmap](../docs/ROADMAP.md).

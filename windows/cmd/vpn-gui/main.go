@@ -31,7 +31,7 @@ func main() {
 	a.SetIcon(icon)
 	w := a.NewWindow("MASQUE VPN")
 	w.SetIcon(icon)
-	w.Resize(fyne.NewSize(480, 360))
+	w.Resize(fyne.NewSize(480, 400))
 
 	status := widget.NewLabel("Checking service…")
 	status.Wrapping = fyne.TextWrapWord
@@ -39,10 +39,14 @@ func main() {
 	detail.Wrapping = fyne.TextWrapWord
 	ping := widget.NewLabel("Ping: —")
 
-	var auto *widget.Check
+	var auto, ks *widget.Check
 	auto = widget.NewCheck("Connect automatically when the service starts", func(v bool) {
 		_, _ = ipc.RoundTrip(ipc.Request{Cmd: ipc.CmdSetAutoconnect, Autoconnect: &v})
-		refresh(status, detail, ping, auto)
+		refresh(status, detail, ping, auto, ks)
+	})
+	ks = widget.NewCheck("Kill switch (block internet if the tunnel drops)", func(v bool) {
+		_, _ = ipc.RoundTrip(ipc.Request{Cmd: ipc.CmdSetKillSwitch, KillSwitch: &v})
+		refresh(status, detail, ping, auto, ks)
 	})
 
 	connectBtn := widget.NewButton("Connect", func() {
@@ -50,14 +54,14 @@ func main() {
 		if err != nil {
 			dialog.ShowError(err, w)
 		}
-		refresh(status, detail, ping, auto)
+		refresh(status, detail, ping, auto, ks)
 	})
 	disconnectBtn := widget.NewButton("Disconnect", func() {
 		_, err := ipc.RoundTrip(ipc.Request{Cmd: ipc.CmdDisconnect})
 		if err != nil {
 			dialog.ShowError(err, w)
 		}
-		refresh(status, detail, ping, auto)
+		refresh(status, detail, ping, auto, ks)
 	})
 	importBtn := widget.NewButton("Import profile", func() {
 		d := dialog.NewFileOpen(func(rc fyne.URIReadCloser, err error) {
@@ -88,7 +92,7 @@ func main() {
 				dialog.ShowError(ierr, w)
 				return
 			}
-			refresh(status, detail, ping, auto)
+			refresh(status, detail, ping, auto, ks)
 		}, w)
 		d.Show()
 	})
@@ -102,6 +106,7 @@ func main() {
 		importBtn,
 		container.NewGridWithColumns(2, connectBtn, disconnectBtn),
 		auto,
+		ks,
 		widget.NewLabel("The tunnel runs in a Windows service. Closing this window does not disconnect."),
 	)))
 
@@ -117,7 +122,7 @@ func main() {
 
 	go func() {
 		for {
-			refresh(status, detail, ping, auto)
+			refresh(status, detail, ping, auto, ks)
 			time.Sleep(2 * time.Second)
 		}
 	}()
@@ -125,7 +130,7 @@ func main() {
 	w.ShowAndRun()
 }
 
-func refresh(status, detail, ping *widget.Label, auto *widget.Check) {
+func refresh(status, detail, ping *widget.Label, auto, ks *widget.Check) {
 	resp, err := ipc.RoundTrip(ipc.Request{Cmd: ipc.CmdStatus})
 	if err != nil {
 		status.SetText("Service unavailable")
@@ -148,6 +153,9 @@ func refresh(status, detail, ping *widget.Label, auto *widget.Check) {
 	}
 	detail.SetText(resp.Detail)
 	auto.SetChecked(resp.Autoconnect)
+	if ks != nil {
+		ks.SetChecked(resp.KillSwitch)
+	}
 }
 
 func companionPEMs(path, text string) (ca, cert, key string) {

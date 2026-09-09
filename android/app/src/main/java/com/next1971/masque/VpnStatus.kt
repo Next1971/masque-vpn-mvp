@@ -5,7 +5,8 @@ object VpnStatus {
         val m = msg.lowercase()
         return when {
             m == "disconnected" -> false
-            m.startsWith("error:") -> false
+            m.startsWith("error:") && !m.contains("kill switch") -> false
+            m.contains("kill switch") -> true
             m == "connected" || m.startsWith("connected ") || m.startsWith("vpn active") -> true
             m.startsWith("reconnect") -> true
             m == "forwarding started" -> true
