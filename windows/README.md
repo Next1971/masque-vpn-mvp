@@ -2,13 +2,13 @@
 
 A Windows VPN client on the shared Go core (`clientcore`). It speaks **QUIC + HTTP/3 CONNECT-IP (MASQUE, RFC 9484)** with mutual TLS, and tunnels traffic through a **Wintun** adapter.
 
-From **v1.3.1** the normal install is a per-machine **MSI**: a **LocalSystem** service runs the tunnel, and a **Fyne GUI** (Start menu, no UAC) imports a profile and connects. Closing the window does not tear down the tunnel. The console `vpn-client.exe` remains for debug. **v1.4** adds the app icon (tray, window, Start menu, MSI, EXE) and **Ping** on the GUI (smoothed QUIC RTT to the server). **v1.5.0** adds IPv6 on the tunnel when the server assigns it (GUI and console). **v1.5.1** uses TUN MTU **1369** and adds **certificate revoke** in `masque-setup.exe`.
+From **v1.3.1** the normal install is a per-machine **MSI**: a **LocalSystem** service runs the tunnel, and a **Fyne GUI** (Start menu, no UAC) imports a profile and connects. Closing the window does not tear down the tunnel. The console `vpn-client.exe` remains for debug. **v1.4** adds the app icon (tray, window, Start menu, MSI, EXE) and **Ping** on the GUI (smoothed QUIC RTT to the server). **v1.5.0** adds IPv6 on the tunnel when the server assigns it (GUI and console). **v1.5.1** uses TUN MTU **1369** and adds **certificate revoke** in `masque-setup.exe`. **v1.5.2** adds an optional kill switch (default off). **v1.5.3** is GitHub **Latest** (same Windows client as 1.5.2, product version bump).
 
 ---
 
 ## Install from a release (recommended)
 
-1. Download `masque-1.5.2.msi` from the [v1.5.2 pre-release](../../releases/tag/v1.5.2), or `masque-1.5.0.msi` from [v1.5.0](../../releases/tag/v1.5.0) ([Latest](../../releases/latest)).
+1. Download `masque-1.5.3.msi` from [v1.5.3](../../releases/tag/v1.5.3) ([Latest](../../releases/latest)).
 2. Run the installer (one UAC prompt). It installs `MasqueVpn` (auto-start), `wintun.dll`, `masque-gui.exe`, and `vpn-client.exe` under `C:\Program Files\MASQUE`.
 3. Open **MASQUE VPN** from the Start menu (no admin).
 4. **Import profile**: `profile.masque` (same single-file bundle as Android).
@@ -209,7 +209,7 @@ For a real VPN in console mode you only need `-profile` and `-full-route` (with 
 ## Limitations
 
 - In-tunnel DNS is plaintext UDP:53 (hidden from the local ISP, visible at the server).
-- Kill switch (v1.5.2, optional) blackholes traffic while the MASQUE service is running and Connect has been requested. Stopping the service or killing the process restores the normal default route.
+- Kill switch (v1.5.2+, optional) blackholes traffic while the MASQUE service is running and Connect has been requested. Stopping the service or killing the process restores the normal default route.
 - Single server/profile per machine.
 
 Other platform limits are listed in the [roadmap](../docs/ROADMAP.md).

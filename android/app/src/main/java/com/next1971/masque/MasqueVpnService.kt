@@ -128,7 +128,14 @@ class MasqueVpnService : VpnService() {
             return
         }
 
-        startForeground(NOTIF_ID, buildNotification("Connecting…"))
+        try {
+            startForeground(NOTIF_ID, buildNotification("Connecting…"))
+        } catch (e: Exception) {
+            Log.e(TAG, "startForeground failed", e)
+            broadcast("Error: ${e.message}")
+            stopSelf()
+            return
+        }
 
         val cfg = Config().apply {
             server = prof.server
@@ -182,15 +189,19 @@ class MasqueVpnService : VpnService() {
                     .setBlocking(ProfileStore.killSwitch(this))
                     .addAddress(addr, TUN_PREFIX)
                     .addRoute("0.0.0.0", 0)
-                    .addRoute("::", 0)
                     .addDnsServer(prof.dns)
-                val v6 = t.assignedAddrV6()
-                if (!v6.isNullOrEmpty()) {
-                    builder.addAddress(v6, TUN_PREFIX_V6)
-                    Log.i(TAG, "TUN IPv6 $v6/$TUN_PREFIX_V6")
-                } else {
-                    // No IPv6 in the tunnel: sink so apps cannot bypass on dual-stack networks.
-                    builder.addAddress("fd00::1", 128)
+                // Many Android TV VpnService stacks reject IPv6 addresses/routes.
+                try {
+                    builder.addRoute("::", 0)
+                    val v6 = t.assignedAddrV6()
+                    if (!v6.isNullOrEmpty()) {
+                        builder.addAddress(v6, TUN_PREFIX_V6)
+                        Log.i(TAG, "TUN IPv6 $v6/$TUN_PREFIX_V6")
+                    } else {
+                        builder.addAddress("fd00::1", 128)
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "IPv6 TUN not supported on this device: ${e.message}")
                 }
                 if (prof.dns != "8.8.8.8") {
                     builder.addDnsServer("8.8.8.8")
@@ -385,22 +396,27 @@ class MasqueVpnService : VpnService() {
 
     private fun buildNotification(text: String): Notification {
         ensureChannel()
-        val launchIntent = requireNotNull(
-            packageManager.getLaunchIntentForPackage(packageName)
-        ) {
-            "No launcher activity found for $packageName"
-        }.setPackage(packageName)
-        val pi = PendingIntent.getActivity(
-            this, 0, launchIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-        return Notification.Builder(this, CHANNEL_ID)
+        // Phone apps only have CATEGORY_LAUNCHER. TV apps only have
+        // LEANBACK_LAUNCHER, so getLaunchIntentForPackage() is null there
+        // and requireNotNull used to crash the process on Connect.
+        val launchIntent =
+            packageManager.getLeanbackLaunchIntentForPackage(packageName)
+                ?: packageManager.getLaunchIntentForPackage(packageName)
+        val n = Notification.Builder(this, CHANNEL_ID)
             .setContentTitle("MASQUE VPN")
             .setContentText(text)
             .setSmallIcon(R.drawable.ic_stat_masque)
-            .setContentIntent(pi)
             .setOngoing(true)
-            .build()
+        if (launchIntent != null) {
+            launchIntent.setPackage(packageName)
+            n.setContentIntent(
+                PendingIntent.getActivity(
+                    this, 0, launchIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+            )
+        }
+        return n.build()
     }
 
     private fun updateNotification(text: String) {
