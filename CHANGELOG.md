@@ -4,9 +4,27 @@ All notable changes to MASQUE VPN are documented here.
 
 ## [Unreleased]
 
+## [v1.5.3] - 2026-09-09
+
+**GitHub Latest.** Client line after v1.5.2: Android TV Connect no longer crashes. Ships optional **kill switch** (default off) and optional IPv6 in the tunnel. Same CONNECT-IP protocol; existing profiles keep working. No new Linux server binary is required.
+
+### Fixed
+
+- Android TV: Connect crashed when building the VPN notification — TV has only `LEANBACK_LAUNCHER`, so `getLaunchIntentForPackage()` was null. Use the leanback launch intent.
+- Android TV: skip the battery-exemption Settings screen (often missing on leanback).
+- Android: if `VpnService` rejects IPv6 addresses or `::/0`, continue with IPv4 only.
+
+### Changed
+
+- Android `1.5.3` (`versionCode` 20); Windows product **1.5.3**.
+
+### Notes
+
+- Dual-port, DoH/DoT, library bump, and numbered `*.masque` files move to **v1.5.4**. iOS TestFlight moves to **v1.7** (not later than **12 October 2026**).
+
 ## [v1.5.2] - 2026-09-09
 
-**GitHub pre-release.** Optional **kill switch** on Android and Windows. Same CONNECT-IP protocol; existing profiles keep working. Default is **off**. v1.5.0 remains **Latest**.
+**GitHub pre-release.** Optional **kill switch** on Android and Windows. Same CONNECT-IP protocol; existing profiles keep working. Default is **off**. Superseded as Latest by **v1.5.3**.
 
 ### Added
 
@@ -40,7 +58,7 @@ All notable changes to MASQUE VPN are documented here.
 
 ## [v1.5.0] - 2026-08-30
 
-**GitHub Latest release.** Optional **IPv6 inside the tunnel**. Existing IPv4-only server configs (no `tun_addr_v6` / `pool_cidr_v6`) behave as before. Client profiles do not change. QUIC to the server stays on IPv4; do not add an AAAA for the VPN hostname in this release.
+**Was GitHub Latest** until v1.5.3. Optional **IPv6 inside the tunnel**. Existing IPv4-only server configs (no `tun_addr_v6` / `pool_cidr_v6`) behave as before. Client profiles do not change. QUIC to the server stays on IPv4; do not add an AAAA for the VPN hostname in this release.
 
 ### Added
 

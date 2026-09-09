@@ -204,7 +204,7 @@ netfilter-persistent save
 
 Then set the client profile `address` (or `[server].server`) to `your.host:2053`. TLS `server_name` stays the hostname from the certificate. Do **not** change `bind` in `config.server.toml` for this workaround.
 
-v1.5.1 Android still dials **one** port. Dual-port (443 and 2053 at once) is planned for **v1.6**.
+v1.5.3 Android still dials **one** port. Dual-port (443 and 2053 at once) is planned for **v1.5.4**.
 
 ### Revoking a client CN
 

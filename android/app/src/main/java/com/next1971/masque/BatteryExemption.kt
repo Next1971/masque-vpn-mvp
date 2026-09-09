@@ -2,6 +2,7 @@ package com.next1971.masque
 
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.PowerManager
@@ -15,10 +16,15 @@ import android.provider.Settings
 object BatteryExemption {
     fun intentIfNeeded(context: Context): Intent? {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return null
+        // Android TV almost never implements this Settings screen; launching it
+        // crashes or dead-ends before Connect. 1.2.x did not prompt here.
+        if (context.packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK)) return null
         val pm = context.getSystemService(PowerManager::class.java) ?: return null
         if (pm.isIgnoringBatteryOptimizations(context.packageName)) return null
-        return Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+        val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
             data = Uri.parse("package:${context.packageName}")
         }
+        if (intent.resolveActivity(context.packageManager) == null) return null
+        return intent
     }
 }

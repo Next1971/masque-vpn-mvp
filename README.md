@@ -2,7 +2,7 @@
 
 **Self-hosted VPN:** you run the server on your VPS and issue configs only to your own devices. The tunnel rides inside **HTTP/3** (IETF [MASQUE](https://datatracker.ietf.org/doc/html/rfc9484) CONNECT-IP), so it looks like ordinary web traffic rather than a classic VPN handshake. Clients authenticate with **mutual TLS** — the server accepts only certificates you signed.
 
-Clients today: **Android**, **Android TV**, and **Windows** (tray app, no UAC for daily use). An **iOS** client has a first on-device success (`ios/`) and is **not** in a GitHub Release; TestFlight access is planned for **v1.6**.
+Clients today: **Android**, **Android TV**, and **Windows** (tray app, no UAC for daily use). An **iOS** client has a first on-device success (`ios/`) and is **not** in a GitHub Release; TestFlight access is planned for **v1.7**.
 
 This is not a commercial VPN brand and not an audited enterprise client. It is a working personal or family server with open source. Treat it as **experimental**: GitHub Actions compile and test the tree; that is not a third-party penetration test.
 
@@ -15,13 +15,14 @@ This is not a commercial VPN brand and not an audited enterprise client. It is a
 
 ## Release status
 
-- **Latest:** [v1.5.0](../../releases/tag/v1.5.0) — optional IPv6 inside the tunnel (MSI, signed APKs, Linux server binaries)
+- **Latest:** [v1.5.3](../../releases/tag/v1.5.3) — IPv6 in the tunnel, optional kill switch (default off), Android TV Connect fix (MSI, APKs; same Linux server as v1.5.0/1.5.1)
 - **v1.5.2 (pre-release):** optional **kill switch** on Android and Windows (default off). Same protocol; no server binary change.
 - **v1.5.1 (pre-release):** CN denylist / Windows revoke, TUN MTU **1369**, UDP 443 VPS redirect.
+- v1.5.0: optional IPv6 inside the tunnel (was Latest until v1.5.3)
 - v1.4.1: maintenance pre-release (Docker, graceful shutdown, Android IPv6 leak protection)
 - v1.4.2: experimental Windows VPS Setup Helper (superseded for revoke by v1.5.1 `masque-setup.exe`)
 
-  Do not download v1.4.2 expecting a newer Android or Windows VPN client. What is next lives in the [roadmap](docs/ROADMAP.md) (**v1.5.3** dual-port/DoH, **v1.6** TestFlight not later than **12 October 2026**).
+  Do not download v1.4.2 expecting a newer Android or Windows VPN client. What is next lives in the [roadmap](docs/ROADMAP.md) (**v1.5.4** dual-port/DoH and numbered `*.masque` files, **v1.7** TestFlight not later than **12 October 2026**, **v1.8** phone QR import).
 
 ## Is this for me?
 
@@ -34,7 +35,7 @@ Use MASQUE VPN if you:
 Do not use it if you:
 - need a commercial VPN service or public shared endpoints;
 - need anonymous access or a security-audited product;
-- need a shipping iOS client today (code is in `ios/`; TestFlight is planned for v1.6, not in GitHub Releases yet), router or browser-extension support;
+- need a shipping iOS client today (code is in `ios/`; TestFlight is planned for v1.7, not in GitHub Releases yet), router or browser-extension support;
   
 ## Choose your installation path
 
@@ -48,7 +49,7 @@ Do not use it if you:
 
 | Goal | Start here |
 |---|---|
-| Download Latest (v1.5.0) | [GitHub Release](../../releases/latest) |
+| Download Latest (v1.5.3) | [GitHub Release](../../releases/latest) |
 | Download v1.5.2 pre-release | [v1.5.2](../../releases/tag/v1.5.2) |
 | Download v1.5.1 pre-release | [v1.5.1](../../releases/tag/v1.5.1) |
 | Deploy a Linux server | [Detailed server guide](server/README.md) |
