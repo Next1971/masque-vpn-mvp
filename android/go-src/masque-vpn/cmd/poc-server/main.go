@@ -367,9 +367,9 @@ func run(cfg serverConfig) error {
 	mux.HandleFunc("/vpn", func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("CONNECT-IP request: %s %s from %s", r.Method, r.URL.Path, r.RemoteAddr)
 
-		req, err := connectip.ParseRequest(r, template)
+		req, err := connectip.ParseProxyRequest(r, template)
 		if err != nil {
-			var perr *connectip.RequestParseError
+			var perr *connectip.ProxyRequestParseError
 			if errors.As(err, &perr) {
 				log.Printf("parse request error (HTTP %d): %v", perr.HTTPStatus, err)
 				w.WriteHeader(perr.HTTPStatus)
@@ -468,14 +468,11 @@ func run(cfg serverConfig) error {
 //     conn→TUN direction (router handles TUN→conn for all clients);
 //   - if TUN is absent (nil), uses the previous log-only mode.
 func handleConn(conn *connectip.Conn, tunDev tun.Device, router *Router, mtu int, assign, assignV6, route, routeV6 netip.Prefix) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
 	assigned := []netip.Prefix{assign}
 	if assignV6.IsValid() {
 		assigned = append(assigned, assignV6)
 	}
-	if err := conn.AssignAddresses(ctx, assigned); err != nil {
+	if err := conn.AssignAddresses(assigned); err != nil {
 		return fmt.Errorf("assign addresses: %w", err)
 	}
 	log.Printf("assigned %v to client", assigned)
@@ -487,7 +484,7 @@ func handleConn(conn *connectip.Conn, tunDev tun.Device, router *Router, mtu int
 		last6 := lastIPOfPrefix(routeV6)
 		routes = append(routes, connectip.IPRoute{StartIP: routeV6.Addr(), EndIP: last6, IPProtocol: 0})
 	}
-	if err := conn.AdvertiseRoute(ctx, routes); err != nil {
+	if err := conn.AdvertiseRoute(routes); err != nil {
 		return fmt.Errorf("advertise route: %w", err)
 	}
 	log.Printf("advertised %d route(s) to client", len(routes))

@@ -33,6 +33,8 @@
 #
 # Options:
 #   --port PORT         UDP port the server listens on (default: 4433).
+#   --alt-port PORT     Optional second UDP port written into client profiles
+#                       as [server].alt_port (same host). Clients race both.
 #   --ip IP             Extra IP to add to the server certificate SAN
 #                       (use when --host is a domain but clients may also dial by IP).
 #   --clients N         Number of client bundles to generate (default: 1).
@@ -65,6 +67,7 @@ set -euo pipefail
 # ---- defaults ---------------------------------------------------------------
 HOST=""
 PORT="4433"
+ALT_PORT=""
 EXTRA_IP=""
 CLIENTS="1"
 DAYS="825"
@@ -81,13 +84,14 @@ INDEX=""
 ANDROID_ONLY=0
 CLIENT_ONLY=0
 
-usage() { sed -n '2,75p' "$0" | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }
+usage() { sed -n '2,77p' "$0" | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }
 
 # ---- parse args -------------------------------------------------------------
 while [ $# -gt 0 ]; do
   case "$1" in
     --host)     HOST="$2"; shift 2 ;;
     --port)     PORT="$2"; shift 2 ;;
+    --alt-port) ALT_PORT="$2"; shift 2 ;;
     --ip)       EXTRA_IP="$2"; shift 2 ;;
     --clients)  CLIENTS="$2"; shift 2 ;;
     --days)     DAYS="$2"; shift 2 ;;
@@ -256,13 +260,17 @@ make_client() {
   cp "$CADIR/ca.crt" "$windir/certs/ca.crt"
   cp "$tmp/client.crt" "$windir/certs/client.crt"
   cp "$tmp/client.key" "$windir/certs/client.key"
+  local alt_toml=""
+  if [ -n "${ALT_PORT:-}" ] && [ "$ALT_PORT" != "$PORT" ]; then
+    alt_toml="alt_port    = $ALT_PORT"$'\n'
+  fi
   cat > "$windir/profile.client.toml" <<TOML
 # MASQUE VPN — Windows client profile.
 # Place this file next to vpn-client.exe; keep the certs/ folder alongside it.
 [server]
 server      = "$HOST:$PORT"
 server_name = "$HOST"
-
+$alt_toml
 [tls]
 ca   = "certs\\\\ca.crt"
 cert = "certs\\\\client.crt"
@@ -293,6 +301,9 @@ TOML
     echo "[server]"
     echo "address = \"$HOST:$PORT\""
     echo "name    = \"$HOST\""
+    if [ -n "${ALT_PORT:-}" ] && [ "$ALT_PORT" != "$PORT" ]; then
+      echo "alt_port = $ALT_PORT"
+    fi
     echo ""
     echo "[tun]"
     echo "dns = \"$first_dns\""

@@ -12,7 +12,9 @@ package clientcore
 
 import (
 	"fmt"
+	"net"
 	"net/netip"
+	"strconv"
 
 	"github.com/BurntSushi/toml"
 )
@@ -28,6 +30,9 @@ type Profile struct {
 	// [server]
 	Server     string `toml:"server"`      // host:port of the MASQUE proxy (UDP), e.g. "YOUR_SERVER_HOST:4433"
 	ServerName string `toml:"server_name"` // TLS SNI / URI-template host, e.g. "YOUR_SERVER_HOST"
+	// AltPort, if set, is a second UDP port on the same host. Connect races
+	// both; the first QUIC handshake wins. Zero means single-port (v1.5.3).
+	AltPort int `toml:"alt_port"`
 
 	// [tls] — mTLS material (paths to PEM files, NOT inline secrets)
 	CA       string `toml:"ca"`       // CA for server certificate verification
@@ -46,6 +51,7 @@ type tomlProfile struct {
 	Server struct {
 		Server     string `toml:"server"`
 		ServerName string `toml:"server_name"`
+		AltPort    int    `toml:"alt_port"`
 	} `toml:"server"`
 	TLS struct {
 		CA       string `toml:"ca"`
@@ -75,6 +81,7 @@ func LoadProfile(path string) (*Profile, error) {
 	p := &Profile{
 		Server:     tp.Server.Server,
 		ServerName: tp.Server.ServerName,
+		AltPort:    tp.Server.AltPort,
 		CA:         tp.TLS.CA,
 		Cert:       tp.TLS.Cert,
 		Key:        tp.TLS.Key,
@@ -104,6 +111,9 @@ func (p *Profile) Validate() error {
 	if p.ServerName == "" {
 		return fmt.Errorf("profile: [server].server_name is required (TLS SNI)")
 	}
+	if err := validateAltPort(p.Server, p.AltPort); err != nil {
+		return err
+	}
 	if p.MTU == 0 {
 		p.MTU = 1369 // v1.5.1 default from path MTU tests (see docs/benchmarks/mtu.md)
 	}
@@ -120,6 +130,21 @@ func (p *Profile) Validate() error {
 	for _, d := range p.DNS {
 		if _, err := netip.ParseAddr(d); err != nil {
 			return fmt.Errorf("profile: [tun].dns %q is not a valid IP: %w", d, err)
+		}
+	}
+	return nil
+}
+
+func validateAltPort(server string, alt int) error {
+	if alt == 0 {
+		return nil
+	}
+	if alt < 1 || alt > 65535 {
+		return fmt.Errorf("profile: [server].alt_port %d out of range (1..65535)", alt)
+	}
+	if _, p, err := net.SplitHostPort(server); err == nil {
+		if n, err := strconv.Atoi(p); err == nil && n == alt {
+			return fmt.Errorf("profile: [server].alt_port %d is the same as server port", alt)
 		}
 	}
 	return nil

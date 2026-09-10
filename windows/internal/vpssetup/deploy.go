@@ -54,14 +54,19 @@ echo '---SS---'
 ss -H -uln 2>/dev/null || true
 echo '---MASQUE---'
 if [ -f /opt/masque/config.server.toml ]; then echo HASCONFIG; else echo NOCONFIG; fi
-if [ -f /opt/masque/vpn-server ]; then echo HASBIN; else echo NOBIN; fi
+if [ -f /opt/masque/vpn-server ] || [ -x /opt/masque/bin/poc-server ]; then echo HASBIN; else echo NOBIN; fi
 if [ -f /etc/systemd/system/masque.service ] || [ -f /lib/systemd/system/masque.service ]; then echo HASSVC; else echo NOSVC; fi
 if systemctl is-active --quiet masque 2>/dev/null; then echo ACTIVE; else echo INACTIVE; fi
-if [ ! -f /opt/masque/ca/ca.key ] && [ -f /opt/masque/generated/ca/ca.key ]; then
-  install -d -m 0755 /opt/masque/ca
-  install -m 0644 /opt/masque/generated/ca/ca.crt /opt/masque/ca/ca.crt
-  install -m 0600 /opt/masque/generated/ca/ca.key /opt/masque/ca/ca.key
-  echo ADOPTED_CA
+if [ ! -f /opt/masque/ca/ca.key ]; then
+  for src in /opt/masque/generated/ca /opt/masque/out2/ca /opt/masque/out/ca; do
+    if [ -f "$src/ca.key" ] && [ -f "$src/ca.crt" ]; then
+      install -d -m 0755 /opt/masque/ca
+      install -m 0644 "$src/ca.crt" /opt/masque/ca/ca.crt
+      install -m 0600 "$src/ca.key" /opt/masque/ca/ca.key
+      echo ADOPTED_CA
+      break
+    fi
+  done
 fi
 if [ -f /opt/masque/ca/ca.key ]; then echo HASCA; else echo NOCA; fi
 echo '---TOML---'
@@ -119,7 +124,7 @@ echo '---ENDTOML---'
 		if z.Existing.Present {
 			log("%s", z.Existing.Summary())
 			if strings.Contains(masquePart, "ADOPTED_CA") {
-				log("Copied CA from /opt/masque/generated/ca into /opt/masque/ca (server cert not changed)")
+				log("Copied CA into /opt/masque/ca from generated/out2/out (server cert not changed)")
 			}
 		}
 	}
@@ -209,7 +214,7 @@ func detectExisting(c *Client) (ExistingInstall, error) {
 	out, err := c.Run(20*time.Second, `set +e
 echo '---MASQUE---'
 if [ -f /opt/masque/config.server.toml ]; then echo HASCONFIG; else echo NOCONFIG; fi
-if [ -f /opt/masque/vpn-server ]; then echo HASBIN; else echo NOBIN; fi
+if [ -f /opt/masque/vpn-server ] || [ -x /opt/masque/bin/poc-server ]; then echo HASBIN; else echo NOBIN; fi
 if [ -f /etc/systemd/system/masque.service ] || [ -f /lib/systemd/system/masque.service ]; then echo HASSVC; else echo NOSVC; fi
 if systemctl is-active --quiet masque 2>/dev/null; then echo ACTIVE; else echo INACTIVE; fi
 if [ -f /opt/masque/ca/ca.key ]; then echo HASCA; else echo NOCA; fi

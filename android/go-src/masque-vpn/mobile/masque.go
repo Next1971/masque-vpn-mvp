@@ -23,6 +23,8 @@ type Config struct {
 	CertPath   string
 	KeyPath    string
 	MTU        int
+	// AltPort is an optional second UDP port on the same host (0 = single port).
+	AltPort int
 	// BindInterface is the OS interface name for the QUIC UDP socket (iOS).
 	BindInterface string
 }
@@ -156,6 +158,7 @@ func profileFromConfig(cfg *Config) *clientcore.Profile {
 	return &clientcore.Profile{
 		Server:        cfg.Server,
 		ServerName:    cfg.ServerName,
+		AltPort:       cfg.AltPort,
 		CA:            cfg.CAPath,
 		Cert:          cfg.CertPath,
 		Key:           cfg.KeyPath,
@@ -230,7 +233,11 @@ func dial(cfg *Config, cb Callback, pipe *DatagramPipe) (*Tunnel, error) {
 		return nil, fmt.Errorf("dial: %w", err)
 	}
 	if cb != nil {
-		cb.OnStatus("CONNECT-IP session established")
+		if sess.DialAddr != "" {
+			cb.OnStatus("CONNECT-IP session established via " + sess.DialAddr)
+		} else {
+			cb.OnStatus("CONNECT-IP session established")
+		}
 		if len(sess.AssignedPrefixes) > 0 {
 			cb.OnStatus("assigned " + sess.AssignedPrefixes[0].String())
 		}
@@ -323,10 +330,14 @@ func (t *Tunnel) runPump(ctx context.Context, pump *clientcore.Pump, prof *clien
 		rememberAssigned(t, s)
 		t.mu.Unlock()
 		if cb != nil {
+			via := ""
+			if s.DialAddr != "" {
+				via = " via " + s.DialAddr
+			}
 			if newAddr != "" {
-				cb.OnStatus("reconnected, assigned " + newAddr)
+				cb.OnStatus("reconnected" + via + ", assigned " + newAddr)
 			} else {
-				cb.OnStatus("reconnected")
+				cb.OnStatus("reconnected" + via)
 			}
 		}
 		return s, nil

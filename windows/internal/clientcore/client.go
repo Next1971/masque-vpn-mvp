@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"net/http"
 	"net/netip"
 	"os"
 	"sync"
@@ -16,7 +15,6 @@ import (
 	connectip "github.com/quic-go/connect-ip-go"
 	"github.com/quic-go/quic-go"
 	"github.com/quic-go/quic-go/http3"
-	"github.com/yosida95/uritemplate/v3"
 	"golang.zx2c4.com/wireguard/tun"
 )
 
@@ -50,6 +48,8 @@ type Session struct {
 	AssignedPrefixes []netip.Prefix
 	// Routes are the routes advertised by the server (usually 0.0.0.0/0).
 	Routes []connectip.IPRoute
+	// DialAddr is the UDP host:port that won the handshake (profile or alternate).
+	DialAddr string
 
 	closeOnce sync.Once
 	done      chan struct{}
@@ -112,77 +112,23 @@ func Connect(ctx context.Context, p *Profile, dev tun.Device) (*Session, error) 
 	if err != nil {
 		return nil, fmt.Errorf("resolve server %q: %w", p.Server, err)
 	}
-	udpConn, err := net.ListenUDP("udp", &net.UDPAddr{IP: net.IPv4zero})
-	if err != nil {
-		return nil, fmt.Errorf("listen UDP: %w", err)
-	}
 
 	tlsConf, err := buildTLSConfig(p)
 	if err != nil {
-		udpConn.Close()
 		return nil, err
 	}
 
-	qconn, err := quic.Dial(ctx, udpConn, udpAddr, tlsConf, newQUICConfig())
+	addrs := dualDialAddrs(udpAddr, p.AltPort)
+	var leg *quicLeg
+	if len(addrs) == 1 {
+		leg, err = listenAndDialQUIC(ctx, addrs[0], tlsConf)
+	} else {
+		leg, err = raceQUIC(ctx, addrs, tlsConf)
+	}
 	if err != nil {
-		udpConn.Close()
-		return nil, fmt.Errorf("QUIC dial: %w", err)
+		return nil, err
 	}
-	log.Printf("QUIC connection established to %s", p.Server)
-
-	tr := &http3.Transport{EnableDatagrams: true}
-	hconn := tr.NewClientConn(qconn)
-
-	template := uritemplate.MustNew(fmt.Sprintf("https://%s/vpn", p.ServerName))
-	ipconn, rsp, err := connectip.Dial(ctx, hconn, template)
-	if err != nil {
-		qconn.CloseWithError(0, "")
-		udpConn.Close()
-		return nil, fmt.Errorf("connect-ip dial: %w", err)
-	}
-	if rsp.StatusCode != http.StatusOK {
-		ipconn.Close()
-		qconn.CloseWithError(0, "")
-		udpConn.Close()
-		return nil, fmt.Errorf("unexpected CONNECT-IP status: %d", rsp.StatusCode)
-	}
-	log.Printf("CONNECT-IP session established (HTTP %d)", rsp.StatusCode)
-
-	prefixes, err := ipconn.LocalPrefixes(ctx)
-	if err != nil {
-		ipconn.Close()
-		qconn.CloseWithError(0, "")
-		udpConn.Close()
-		return nil, fmt.Errorf("get local prefixes: %w", err)
-	}
-	if len(prefixes) == 0 {
-		ipconn.Close()
-		qconn.CloseWithError(0, "")
-		udpConn.Close()
-		return nil, fmt.Errorf("server assigned no prefixes")
-	}
-	log.Printf("server assigned prefixes: %v", prefixes)
-
-	routes, err := ipconn.Routes(ctx)
-	if err != nil {
-		ipconn.Close()
-		qconn.CloseWithError(0, "")
-		udpConn.Close()
-		return nil, fmt.Errorf("get routes: %w", err)
-	}
-	for _, r := range routes {
-		log.Printf("server advertised route: %s - %s (proto %d)", r.StartIP, r.EndIP, r.IPProtocol)
-	}
-
-	return &Session{
-		udpConn:          udpConn,
-		qconn:            qconn,
-		ipconn:           ipconn,
-		dev:              dev,
-		AssignedPrefixes: prefixes,
-		Routes:           routes,
-		done:             make(chan struct{}),
-	}, nil
+	return finishCONNECTIP(ctx, p, leg, dev)
 }
 
 // AttachTUN binds a TUN device to a session created with dev=nil (two-phase

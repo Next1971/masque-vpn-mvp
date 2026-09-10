@@ -13,4 +13,4 @@ Keep these files in the **same folder**:
 
 You can also choose the Linux binary in the UI. The EXE does **not** embed the server.
 
-Supported VPS OS: Ubuntu 22.04 / 24.04 or Debian 12, as root.
+Supported VPS OS: Ubuntu 22.04 / 24.04 / 26.04 or Debian 12, as root.

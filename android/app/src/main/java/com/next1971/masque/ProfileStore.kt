@@ -11,8 +11,9 @@ import java.io.File
  * Profile format (.masque / .toml, self-contained, with inline PEM):
  *
  *   [server]
- *   address = "YOUR_SERVER_HOST:4433"
- *   name    = "YOUR_SERVER_HOST"
+ *   address  = "YOUR_SERVER_HOST:4433"
+ *   name     = "YOUR_SERVER_HOST"
+ *   alt_port = 2053   # optional second UDP port; omit for a single port
  *
  *   [tun]
  *   dns = "1.1.1.1"
@@ -42,6 +43,7 @@ data class Profile(
     val server: String,
     val serverName: String,
     val dns: String,
+    val altPort: Int,
     val caPath: String,
     val certPath: String,
     val keyPath: String,
@@ -77,6 +79,7 @@ object ProfileStore {
                 ?: return Result.failure(IllegalArgumentException("missing server.address"))
             val name = extractValue(content, "name") ?: server.substringBefore(":")
             val dns = extractValue(content, "dns") ?: "1.1.1.1"
+            val altPort = extractPort(content, "alt_port")
             val ca = extractBlock(content, "ca") ?: return Result.failure(IllegalArgumentException("missing tls.ca"))
             val cert = extractBlock(content, "cert") ?: return Result.failure(IllegalArgumentException("missing tls.cert"))
             val key = extractBlock(content, "key") ?: return Result.failure(IllegalArgumentException("missing tls.key"))
@@ -85,11 +88,11 @@ object ProfileStore {
             File(dir, "ca.crt").writeText(ca.trim() + "\n")
             File(dir, "client.crt").writeText(cert.trim() + "\n")
             File(dir, "client.key").writeText(key.trim() + "\n")
-            File(dir, "server.txt").writeText("$server\n$name\n$dns\n")
+            File(dir, "server.txt").writeText("$server\n$name\n$dns\n$altPort\n")
 
             ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
                 .putBoolean(KEY_CONFIGURED, true).apply()
-            Log.i(TAG, "profile imported: server=$server name=$name dns=$dns")
+            Log.i(TAG, "profile imported: server=$server name=$name dns=$dns alt_port=$altPort")
             Result.success(Unit)
         } catch (e: Exception) {
             Log.e(TAG, "import failed", e)
@@ -103,10 +106,12 @@ object ProfileStore {
         if (!meta.exists()) return null
         val lines = meta.readLines()
         if (lines.size < 3) return null
+        val alt = if (lines.size >= 4) lines[3].trim().toIntOrNull() ?: 0 else 0
         return Profile(
             server = lines[0].trim(),
             serverName = lines[1].trim(),
             dns = lines[2].trim(),
+            altPort = alt,
             caPath = File(dir, "ca.crt").absolutePath,
             certPath = File(dir, "client.crt").absolutePath,
             keyPath = File(dir, "client.key").absolutePath,
@@ -119,6 +124,13 @@ object ProfileStore {
     private fun extractValue(content: String, key: String): String? {
         val re = Regex("""(?m)^\s*${Regex.escape(key)}\s*=\s*"([^"]*)"""")
         return re.find(content)?.groupValues?.get(1)
+    }
+
+    /** Integer key = 2053 or key = "2053". Zero / missing means single-port. */
+    private fun extractPort(content: String, key: String): Int {
+        extractValue(content, key)?.toIntOrNull()?.let { return it }
+        val re = Regex("""(?m)^\s*${Regex.escape(key)}\s*=\s*(\d+)""")
+        return re.find(content)?.groupValues?.get(1)?.toIntOrNull() ?: 0
     }
 
     /** Block key = """ ... """ entry (triple-quoted, multiline). */

@@ -101,11 +101,16 @@ func run(ctx context.Context, proxyAddr, serverName, caFile, certFile, keyFile s
 	}
 	log.Printf("QUIC connection established to %s", proxyAddr)
 
-	tr := &http3.Transport{EnableDatagrams: true}
-	hconn := tr.NewClientConn(conn)
-
 	template := uritemplate.MustNew(fmt.Sprintf("https://%s/vpn", serverName))
-	ipconn, rsp, err := connectip.Dial(ctx, hconn, template)
+	req, err := connectip.NewRequest(ctx, template)
+	if err != nil {
+		return fmt.Errorf("connect-ip request: %w", err)
+	}
+	cc, err := (&connectip.Transport{}).NewClientConn(conn)
+	if err != nil {
+		return fmt.Errorf("connect-ip client: %w", err)
+	}
+	ipconn, rsp, err := cc.Dial(req)
 	if err != nil {
 		return fmt.Errorf("connect-ip dial: %w", err)
 	}

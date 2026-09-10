@@ -45,7 +45,11 @@ func Connect(cfg *Config, fd int, cb Callback) (*Tunnel, error) {
 		return nil, fmt.Errorf("connect: %w", err)
 	}
 	if cb != nil {
-		cb.OnStatus("CONNECT-IP session established")
+		if sess.DialAddr != "" {
+			cb.OnStatus("CONNECT-IP session established via " + sess.DialAddr)
+		} else {
+			cb.OnStatus("CONNECT-IP session established")
+		}
 		if len(sess.AssignedPrefixes) > 0 {
 			cb.OnStatus("assigned " + sess.AssignedPrefixes[0].String())
 		}

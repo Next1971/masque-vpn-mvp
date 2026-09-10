@@ -2,7 +2,7 @@
 
 This guide is tested on **Ubuntu 22.04**. Any modern systemd Linux with a public IP should work. All commands are run as `root` (or with `sudo`).
 
-From Windows you can use **`masque-setup.exe`** (see [windows/README.md](../windows/README.md)) to SSH in, check the OS, pick a UDP port, open **ufw** if it is installed, and deploy this same layout. The GUI installer only supports **Ubuntu 22.04/24.04** and **Debian 12**.
+From Windows you can use **`masque-setup.exe`** (see [windows/README.md](../windows/README.md)) to SSH in, check the OS, pick a UDP port, open **ufw** if it is installed, and deploy this same layout. The GUI installer only supports **Ubuntu 22.04/24.04/26.04** and **Debian 12**.
 
 The server tunnels IP traffic over QUIC + HTTP/3 CONNECT-IP and authenticates clients with mutual TLS (mTLS). From **v1.3** the server also:
 
@@ -204,7 +204,7 @@ netfilter-persistent save
 
 Then set the client profile `address` (or `[server].server`) to `your.host:2053`. TLS `server_name` stays the hostname from the certificate. Do **not** change `bind` in `config.server.toml` for this workaround.
 
-v1.5.3 Android still dials **one** port. Dual-port (443 and 2053 at once) is planned for **v1.5.4**.
+**v1.5.4** clients race the profile port and optional `[server].alt_port` (first QUIC handshake wins). Older clients ignore `alt_port` and dial **one** port. Generate it with `gen-config.sh --alt-port 2053` (or any port you DNAT/listen on).
 
 ### Revoking a client CN
 
