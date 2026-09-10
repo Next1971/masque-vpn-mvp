@@ -23,7 +23,7 @@ This is not a commercial VPN brand and not an audited enterprise client. It is a
 - v1.4.1: maintenance pre-release (Docker, graceful shutdown, Android IPv6 leak protection)
 - v1.4.2: experimental Windows VPS Setup Helper (superseded for revoke by v1.5.1 `masque-setup.exe`)
 
-  Do not download v1.4.2 expecting a newer Android or Windows VPN client. What is next lives in the [roadmap](docs/ROADMAP.md) (**v1.5.4** pre-release: library bump + dual-port, **v1.7** TestFlight not later than **12 October 2026**, **v1.8** phone QR import).
+  What is next lives in the [roadmap](docs/ROADMAP.md) (**v1.5.4** pre-release: library bump + `alt_port`, **v1.7** TestFlight not later than **12 October 2026**, **v1.8** phone QR import).
 
 ## Is this for me?
 
