@@ -2,7 +2,7 @@
 
 A Windows VPN client on the shared Go core (`clientcore`). It speaks **QUIC + HTTP/3 CONNECT-IP (MASQUE, RFC 9484)** with mutual TLS, and tunnels traffic through a **Wintun** adapter.
 
-From **v1.3.1** the normal install is a per-machine **MSI**: a **LocalSystem** service runs the tunnel, and a **Fyne GUI** (Start menu, no UAC) imports a profile and connects. Closing the window does not tear down the tunnel. The console `vpn-client.exe` remains for debug. **v1.4** adds the app icon (tray, window, Start menu, MSI, EXE) and **Ping** on the GUI (smoothed QUIC RTT to the server). **v1.5.0** adds IPv6 on the tunnel when the server assigns it (GUI and console). **v1.5.1** uses TUN MTU **1369** and adds **certificate revoke** in `masque-setup.exe`. **v1.5.2** adds an optional kill switch (default off). **v1.5.3** is GitHub **Latest** (same Windows client as 1.5.2, product version bump).
+From **v1.3.1** the normal install is a per-machine **MSI**: a **LocalSystem** service runs the tunnel, and a **Fyne GUI** (Start menu, no UAC) imports a profile and connects. Closing the window does not tear down the tunnel. The console `vpn-client.exe` remains for debug. **v1.4** adds the app icon (tray, window, Start menu, MSI, EXE) and **Ping** on the GUI (smoothed QUIC RTT to the server). **v1.5.0** adds IPv6 on the tunnel when the server assigns it (GUI and console). **v1.5.1** uses TUN MTU **1369** and adds **certificate revoke** in `masque-setup.exe`. **v1.5.2** adds an optional kill switch (default off). **v1.5.3** is GitHub **Latest** (same Windows client as 1.5.2, product version bump). **v1.5.4** (pre-release) bumps `connect-ip-go` and races optional `alt_port`.
 
 ---
 

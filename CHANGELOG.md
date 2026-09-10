@@ -4,6 +4,24 @@ All notable changes to MASQUE VPN are documented here.
 
 ## [Unreleased]
 
+## [v1.5.4] - 2026-09-10
+
+**GitHub pre-release.** Library bump (`connect-ip-go` v0.3.0) plus dual-port QUIC dial. Same CONNECT-IP protocol; existing profiles keep working. **New Linux server binary** (first server drop since v1.5.1). v1.5.3 remains **Latest** until this soaks.
+
+### Added
+
+- Optional `[server].alt_port` in the profile: Android, Windows, and Linux clients race that UDP port and `[server].server`. First successful QUIC handshake wins; CONNECT-IP runs only on the winner. Omit `alt_port` for a single port (same as v1.5.3). iOS stores the field but still dials the profile port only.
+
+### Changed
+
+- `connect-ip-go` **v0.2.0 → v0.3.0** (server and clients). `quic-go` stays **v0.62.0** (what v0.3.0 pins).
+- Android `1.5.4` (`versionCode` 21); Windows product **1.5.4**.
+
+### Notes
+
+- Dual-port is not guessed: write `alt_port = 2053` (or any other port) in the profile, and open that port on the VPS (listen or DNAT). `gen-config.sh --alt-port` writes the field.
+- DoH/DoT and extra numbered-profile UI are not in this tag.
+
 ## [v1.5.3] - 2026-09-09
 
 **GitHub Latest.** Client line after v1.5.2: Android TV Connect no longer crashes. Ships optional **kill switch** (default off) and optional IPv6 in the tunnel. Same CONNECT-IP protocol; existing profiles keep working. No new Linux server binary is required.
@@ -20,7 +38,7 @@ All notable changes to MASQUE VPN are documented here.
 
 ### Notes
 
-- Dual-port, DoH/DoT, library bump, and numbered `*.masque` files move to **v1.5.4**. iOS TestFlight moves to **v1.7** (not later than **12 October 2026**).
+- Next client/server slice is **v1.5.4**: library bump, then Android dual-port. Numbered issue files already ship; DoH/DoT is out of scope (self-hosted VPS). iOS TestFlight stays **v1.7** (not later than **12 October 2026**).
 
 ## [v1.5.2] - 2026-09-09
 

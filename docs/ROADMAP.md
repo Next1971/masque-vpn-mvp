@@ -1,19 +1,19 @@
 # Roadmap
 
-> Status snapshot: last updated 2026-09-09. See [CHANGELOG.md](../CHANGELOG.md) for release history.
+> Status snapshot: last updated 2026-09-10. See [CHANGELOG.md](../CHANGELOG.md) for release history.
 
 ## Current status
 
-MASQUE VPN has been operational and tested end-to-end since **July 15, 2026** (server, Windows, Android). **v1.0** shipped **14 August 2026**. **v1.5.3** is GitHub **Latest** (IPv6 in the tunnel, optional kill switch, Android TV Connect crash fix). **v1.5.1** and **v1.5.2** remain technical pre-releases (CN denylist / MTU **1369** / UDP 443 redirect; then kill switch). **v1.5.0** was Latest until v1.5.3.
+MASQUE VPN has been operational and tested end-to-end since **July 15, 2026** (server, Windows, Android). **v1.0** shipped **14 August 2026**. **v1.5.3** is GitHub **Latest**. **v1.5.4** is a technical pre-release (`connect-ip-go` v0.3.0 + dual-port). **v1.5.1** and **v1.5.2** remain technical pre-releases. **v1.5.0** was Latest until v1.5.3.
 
 **v1.7** (iOS TestFlight) is scheduled **not later than 12 October 2026**. Client/installer **design work can happen in any branch** and is not gated on a version number. **Store listings** (Play / F-Droid) start **after** that visual snapshot, not in 1.5.x.
 
 | Component | Status | Notes |
 |---|---|---|
-| Server | Stable | Same protocol as v1.5.0/1.5.1; no server binary change in v1.5.2 or v1.5.3 |
-| Windows client | Stable | v1.5.3 MSI: optional kill switch |
-| Windows VPS installer | **Experimental (v1.5.1)** | `masque-setup.exe`; not required for v1.5.3 |
-| Android client | Stable | v1.5.3 APKs: kill switch + TV Connect fix (phone + TV) |
+| Server | Stable | v1.5.3 Latest uses the v1.5.1 binary. **v1.5.4** pre-release ships a new server (`connect-ip-go` v0.3.0) |
+| Windows client | Stable | Latest v1.5.3; **v1.5.4** pre-release adds dual-port |
+| Windows VPS installer | **Experimental (v1.5.1)** | `masque-setup.exe`; not required for v1.5.3 / v1.5.4 |
+| Android client | Stable | Latest v1.5.3; **v1.5.4** pre-release adds dual-port |
 | iOS client | **In progress (v1.7)** | Source in `ios/`; TestFlight planned for v1.7 |
 
 This is experimental software and has not received an independent security audit.
@@ -23,7 +23,7 @@ This is experimental software and has not received an independent security audit
 | Tag | Focus | Notes |
 |---|---|---|
 | **v1.5.3** | Latest: kill switch + TV Connect fix | Client-only vs v1.5.0. Default kill switch **off**. Same protocol. |
-| **v1.5.4** | Dual-port, DoH/DoT, library bump, numbered profiles | Bump `quic-go` / `connect-ip-go` **first** and soak, then dual-port and DoH. Numbered `*.masque` filenames (same drop). Do not land dual-port + DoH + bump in one night. |
+| **v1.5.4** | Pre-release: `connect-ip-go` v0.3.0 + dual-port | New server binary. Clients race `[server]` and optional `alt_port`. DoH not in this tag. |
 | **v1.5.5** | Server install packaging | `install.sh`, SHA256SUMS, Sigstore attestations. Little/no protocol change. |
 | **v1.5.6** | QUIC to the server over IPv6 | AAAA + host-route / exclude so the UDP socket does not loop into TUN. Separate from dual-port. |
 | **v1.7** | iOS TestFlight | UI refresh ships in whichever build is ready; stores follow the designed UI. |
@@ -90,24 +90,22 @@ This is experimental software and has not received an independent security audit
 - [x] Android TV Connect crash: leanback notification intent, skip battery-exemption on TV, IPv6 TUN optional if the device rejects it.
 - [x] GitHub **Latest** now includes kill switch + IPv6 tunnel clients (phone, TV, Windows).
 
+## Completed (v1.5.4)
+
+- [x] `connect-ip-go` **v0.3.0** on server and clients (`quic-go` remains v0.62.0).
+- [x] Dual-port QUIC dial via optional `[server].alt_port` (any second UDP port; first handshake wins).
+
 ## Known limitations (all platforms)
 
 - Connecting to the VPN server is still **IPv4 QUIC** (no AAAA / UDP 443 on IPv6 until **v1.5.6**).
-- Some networks drop outbound **UDP 443**. Use an alternate UDP port with VPS DNAT (see [server README](../server/README.md#udp-443-blocked-on-the-client-path)). Simultaneous dual-port is **v1.5.4**.
-- In-tunnel DNS is plaintext UDP:53 — hidden from the local ISP but visible to the server operator. DoH/DoT is **v1.5.4**.
+- Some networks drop outbound **UDP 443**. Use an alternate UDP port with VPS DNAT (see [server README](../server/README.md#udp-443-blocked-on-the-client-path)). **v1.5.4** clients race the profile port and optional `alt_port`.
+- In-tunnel DNS is plaintext UDP:53 — hidden from the local ISP but visible to the server operator. DoH/DoT is **not planned**: the project targets a **VPS you operate**, so that visibility is not treated as a product hole.
 - Kill switch (v1.5.2+) does not survive a killed VPN process. On Android, system Always-on VPN / “Block connections without VPN” is the extra layer.
 - Single server/profile per client — no profile list or automatic failover.
 - No independent security audit yet.
 - Some OEM battery savers ignore the exemption dialog; a killed process still needs a manual Connect.
 - NAT64/DNS64 is not included: AAAA destinations need WAN IPv6 on the VPS.
 - CN denylist is not a CRL/OCSP PKI: it is a server-side name list reloaded on process start.
-
-## Planned for v1.5.4
-
-- [ ] Bump and soak `quic-go` / `connect-ip-go` (first commit of the line; e2e on Android, Windows, Linux).
-- [ ] Android dual-port: attempt UDP 443 and the alternate listen port at the same time.
-- [ ] DNS over HTTPS/TLS (DoH/DoT) inside the tunnel.
-- [ ] Numbered client profile files from `masque-setup.exe`: save as `masque-client-N.masque` (example `masque-client-23.masque`), matching CN `masque-client-N` and the revoke number. Bootstrap from install stays a separate unnumbered `profile.masque` unless it is issued as `#N`. Clients (Android / Windows) show that index in the UI after import so the operator can match revoke. Import still accepts any filename; content is unchanged.
 
 ## Planned for v1.5.5
 
@@ -136,5 +134,7 @@ This is experimental software and has not received an independent security audit
 
 ## Explicitly out of scope for now
 
+- Extra numbered-profile work (`masque-client-N.masque` rename, index in the client UI). Issue already writes `masque-client-N.profile.masque` with CN `masque-client-N`; revoke uses that `N`. Bootstrap stays `profile.masque`.
+- DoH/DoT inside the tunnel. MASQUE is aimed at a **self-hosted VPS**; plaintext UDP:53 in the tunnel is visible to the operator by design, not to the local ISP.
 - GUI-based certificate management beyond the experimental Windows VPS installer (certs are generated/distributed out-of-band by design).
 - Multi-hop / chained proxy support.

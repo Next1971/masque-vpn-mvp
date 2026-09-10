@@ -144,6 +144,7 @@ class MasqueVpnService : VpnService() {
             certPath = prof.certPath
             keyPath = prof.keyPath
             mtu = TUN_MTU.toLong()
+            altPort = prof.altPort.toLong()
         }
 
         val cb = object : Callback {

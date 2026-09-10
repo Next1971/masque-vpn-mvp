@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"net/http"
 	"net/netip"
 	"os"
 	"sync"
@@ -16,7 +15,6 @@ import (
 	connectip "github.com/quic-go/connect-ip-go"
 	"github.com/quic-go/quic-go"
 	"github.com/quic-go/quic-go/http3"
-	"github.com/yosida95/uritemplate/v3"
 	"golang.zx2c4.com/wireguard/tun"
 )
 
@@ -52,6 +50,8 @@ type Session struct {
 	AssignedPrefixes []netip.Prefix
 	// Routes are routes advertised by the server (usually 0.0.0.0/0).
 	Routes []connectip.IPRoute
+	// DialAddr is the UDP host:port that won the handshake (profile or alternate).
+	DialAddr string
 
 	closeOnce sync.Once
 	done      chan struct{}
@@ -115,13 +115,8 @@ func Connect(ctx context.Context, p *Profile, dev tun.Device) (*Session, error) 
 // ConnectWithPacketConn is Connect with an optional PacketConn. iOS passes a
 // Network Extension UDP session wrapper; a nil pc uses a BSD socket (Android).
 func ConnectWithPacketConn(ctx context.Context, p *Profile, dev tun.Device, pc net.PacketConn) (sess *Session, err error) {
-	var udpConn *net.UDPConn
-	ownUDP := false
 	defer func() {
 		if r := recover(); r != nil {
-			if ownUDP && udpConn != nil {
-				udpConn.Close()
-			}
 			err = fmt.Errorf("connect panic: %v", r)
 			sess = nil
 		}
@@ -135,90 +130,33 @@ func ConnectWithPacketConn(ctx context.Context, p *Profile, dev tun.Device, pc n
 		return nil, fmt.Errorf("resolve server %q: %w", p.Server, err)
 	}
 
-	packetConn := pc
-	if packetConn == nil {
-		udpConn, err = net.ListenUDP("udp", &net.UDPAddr{IP: net.IPv4zero})
-		if err != nil {
-			return nil, fmt.Errorf("listen UDP: %w", err)
-		}
-		ownUDP = true
-		packetConn = udpConn
-		// Never abort Dial on bind failure: IP_BOUND_IF from a Packet Tunnel
-		// can error or panic, and a fatal bind was crashing the iOS extension
-		// about a second after startTunnel completed.
-		if err := bindUDPToInterface(udpConn, p.BindInterface); err != nil {
-			log.Printf("bind UDP to %q failed (continuing): %v", p.BindInterface, err)
-		}
-	}
-
-	fail := func(e error) (*Session, error) {
-		if ownUDP && udpConn != nil {
-			udpConn.Close()
-		}
-		return nil, e
-	}
-
 	tlsConf, err := buildTLSConfig(p)
 	if err != nil {
-		return fail(err)
+		return nil, err
 	}
 
-	qconn, err := quic.Dial(ctx, packetConn, udpAddr, tlsConf, newQUICConfig())
+	// iOS supplies one UDP session aimed at the profile port — no second socket.
+	if pc != nil {
+		leg := &quicLeg{packetConn: pc, ownUDP: false, addr: udpAddr.String()}
+		if err := leg.dial(ctx, udpAddr, tlsConf); err != nil {
+			return nil, err
+		}
+		return finishCONNECTIP(ctx, p, leg, dev)
+	}
+
+	addrs := dualDialAddrs(udpAddr, p.AltPort)
+	if len(addrs) == 1 {
+		leg, err := listenAndDialQUIC(ctx, p, addrs[0], tlsConf)
+		if err != nil {
+			return nil, err
+		}
+		return finishCONNECTIP(ctx, p, leg, dev)
+	}
+	leg, err := raceQUIC(ctx, p, addrs, tlsConf)
 	if err != nil {
-		return fail(fmt.Errorf("QUIC dial: %w", err))
+		return nil, err
 	}
-	log.Printf("QUIC connection established to %s", p.Server)
-
-	tr := &http3.Transport{EnableDatagrams: true}
-	hconn := tr.NewClientConn(qconn)
-
-	template := uritemplate.MustNew(fmt.Sprintf("https://%s/vpn", p.ServerName))
-	ipconn, rsp, err := connectip.Dial(ctx, hconn, template)
-	if err != nil {
-		qconn.CloseWithError(0, "")
-		return fail(fmt.Errorf("connect-ip dial: %w", err))
-	}
-	if rsp.StatusCode != http.StatusOK {
-		ipconn.Close()
-		qconn.CloseWithError(0, "")
-		return fail(fmt.Errorf("unexpected CONNECT-IP status: %d", rsp.StatusCode))
-	}
-	log.Printf("CONNECT-IP session established (HTTP %d)", rsp.StatusCode)
-
-	prefixes, err := ipconn.LocalPrefixes(ctx)
-	if err != nil {
-		ipconn.Close()
-		qconn.CloseWithError(0, "")
-		return fail(fmt.Errorf("get local prefixes: %w", err))
-	}
-	if len(prefixes) == 0 {
-		ipconn.Close()
-		qconn.CloseWithError(0, "")
-		return fail(fmt.Errorf("server assigned no prefixes"))
-	}
-	log.Printf("server assigned prefixes: %v", prefixes)
-
-	routes, err := ipconn.Routes(ctx)
-	if err != nil {
-		ipconn.Close()
-		qconn.CloseWithError(0, "")
-		return fail(fmt.Errorf("get routes: %w", err))
-	}
-	for _, r := range routes {
-		log.Printf("server advertised route: %s - %s (proto %d)", r.StartIP, r.EndIP, r.IPProtocol)
-	}
-
-	return &Session{
-		udpConn:          udpConn,
-		packetConn:       packetConn,
-		ownUDP:           ownUDP,
-		qconn:            qconn,
-		ipconn:           ipconn,
-		dev:              dev,
-		AssignedPrefixes: prefixes,
-		Routes:           routes,
-		done:             make(chan struct{}),
-	}, nil
+	return finishCONNECTIP(ctx, p, leg, dev)
 }
 
 // AttachTUN binds a TUN device to a session that was created with dev=nil

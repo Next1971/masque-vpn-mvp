@@ -16,13 +16,14 @@ This is not a commercial VPN brand and not an audited enterprise client. It is a
 ## Release status
 
 - **Latest:** [v1.5.3](../../releases/tag/v1.5.3) — IPv6 in the tunnel, optional kill switch (default off), Android TV Connect fix (MSI, APKs; same Linux server as v1.5.0/1.5.1)
+- **v1.5.4 (pre-release):** `connect-ip-go` v0.3.0 + optional `alt_port` dual-port. New Linux server binary.
 - **v1.5.2 (pre-release):** optional **kill switch** on Android and Windows (default off). Same protocol; no server binary change.
 - **v1.5.1 (pre-release):** CN denylist / Windows revoke, TUN MTU **1369**, UDP 443 VPS redirect.
 - v1.5.0: optional IPv6 inside the tunnel (was Latest until v1.5.3)
 - v1.4.1: maintenance pre-release (Docker, graceful shutdown, Android IPv6 leak protection)
 - v1.4.2: experimental Windows VPS Setup Helper (superseded for revoke by v1.5.1 `masque-setup.exe`)
 
-  Do not download v1.4.2 expecting a newer Android or Windows VPN client. What is next lives in the [roadmap](docs/ROADMAP.md) (**v1.5.4** dual-port/DoH and numbered `*.masque` files, **v1.7** TestFlight not later than **12 October 2026**, **v1.8** phone QR import).
+  Do not download v1.4.2 expecting a newer Android or Windows VPN client. What is next lives in the [roadmap](docs/ROADMAP.md) (**v1.5.4** pre-release: library bump + dual-port, **v1.7** TestFlight not later than **12 October 2026**, **v1.8** phone QR import).
 
 ## Is this for me?
 

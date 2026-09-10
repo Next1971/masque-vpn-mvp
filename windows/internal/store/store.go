@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/BurntSushi/toml"
@@ -118,10 +119,14 @@ func writeProfileTOML(path string, p *clientcore.Profile) error {
 	for i, d := range p.DNS {
 		dns[i] = fmt.Sprintf("%q", d)
 	}
+	alt := ""
+	if p.AltPort > 0 {
+		alt = fmt.Sprintf("alt_port = %d\n", p.AltPort)
+	}
 	body := fmt.Sprintf(`[server]
 server = %q
 server_name = %q
-
+%s
 [tls]
 ca = %q
 cert = %q
@@ -132,7 +137,7 @@ insecure = %t
 tun_name = %q
 mtu = %d
 dns = [%s]
-`, p.Server, p.ServerName, p.CA, p.Cert, p.Key, p.Insecure, p.TUNName, p.MTU, strings.Join(dns, ", "))
+`, p.Server, p.ServerName, alt, p.CA, p.Cert, p.Key, p.Insecure, p.TUNName, p.MTU, strings.Join(dns, ", "))
 	return os.WriteFile(path, []byte(body), 0600)
 }
 
@@ -144,6 +149,7 @@ func parseBundle(text, extraCA, extraCert, extraKey string) (*clientcore.Profile
 			Server struct {
 				Server     string `toml:"server"`
 				ServerName string `toml:"server_name"`
+				AltPort    int    `toml:"alt_port"`
 			} `toml:"server"`
 			TLS struct {
 				CA       string `toml:"ca"`
@@ -160,6 +166,7 @@ func parseBundle(text, extraCA, extraCert, extraKey string) (*clientcore.Profile
 		if err := toml.Unmarshal([]byte(text), &tp); err == nil {
 			p.Server = tp.Server.Server
 			p.ServerName = tp.Server.ServerName
+			p.AltPort = tp.Server.AltPort
 			p.Insecure = tp.TLS.Insecure
 			p.TUNName = tp.TUN.Name
 			p.MTU = tp.TUN.MTU
@@ -195,6 +202,7 @@ func parseBundle(text, extraCA, extraCert, extraKey string) (*clientcore.Profile
 	}
 	p.Server = server
 	p.ServerName = name
+	p.AltPort = firstInt(text, "alt_port")
 	if dns != "" {
 		p.DNS = []string{dns}
 	}
@@ -222,6 +230,23 @@ func ensureNL(s string) string {
 		s += "\n"
 	}
 	return s
+}
+
+func firstInt(text string, keys ...string) int {
+	for _, key := range keys {
+		if s := firstString(text, key); s != "" {
+			if n, err := strconv.Atoi(s); err == nil {
+				return n
+			}
+		}
+		re := regexp.MustCompile(`(?m)^\s*` + regexp.QuoteMeta(key) + `\s*=\s*(\d+)`)
+		if m := re.FindStringSubmatch(text); len(m) == 2 {
+			if n, err := strconv.Atoi(m[1]); err == nil {
+				return n
+			}
+		}
+	}
+	return 0
 }
 
 func firstString(text string, keys ...string) string {
