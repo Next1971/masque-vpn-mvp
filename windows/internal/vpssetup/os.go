@@ -60,10 +60,10 @@ func Supported(d Distro) error {
 	switch d.ID {
 	case "ubuntu":
 		switch d.VersionID {
-		case "22.04", "24.04":
+		case "22.04", "24.04", "26.04":
 			return nil
 		default:
-			return fmt.Errorf("Ubuntu %s is not supported (need 22.04 or 24.04 LTS)", d.VersionID)
+			return fmt.Errorf("Ubuntu %s is not supported (need 22.04, 24.04, or 26.04 LTS)", d.VersionID)
 		}
 	case "debian":
 		if d.VersionID == "12" {
@@ -71,6 +71,6 @@ func Supported(d Distro) error {
 		}
 		return fmt.Errorf("Debian %s is not supported (need Debian 12)", d.VersionID)
 	default:
-		return fmt.Errorf("OS %q is not supported (need Ubuntu 22.04/24.04 or Debian 12)", d.PrettyName)
+		return fmt.Errorf("OS %q is not supported (need Ubuntu 22.04/24.04/26.04 or Debian 12)", d.PrettyName)
 	}
 }

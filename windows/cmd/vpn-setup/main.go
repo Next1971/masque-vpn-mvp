@@ -374,7 +374,7 @@ func main() {
 
 	form := container.NewVBox(
 		widget.NewRichTextFromMarkdown("## MASQUE VPS installer (experimental)\n\n**Test / pre-release.** This can break a VPS or leak a root password if you use it carelessly. Do not treat it as a finished product. Compromised client CNs can be revoked (denylist + service restart)."),
-		widget.NewLabel("Ubuntu 22.04/24.04 or Debian 12, as root. If MASQUE is already installed, Connect skips install and opens key issuance."),
+		widget.NewLabel("Ubuntu 22.04/24.04/26.04 or Debian 12, as root. If MASQUE is already installed, Connect skips install and opens key issuance."),
 		widget.NewForm(
 			widget.NewFormItem("SSH host", sshHost),
 			widget.NewFormItem("SSH port", sshPort),

@@ -2,7 +2,7 @@
 
 This guide is tested on **Ubuntu 22.04**. Any modern systemd Linux with a public IP should work. All commands are run as `root` (or with `sudo`).
 
-From Windows you can use **`masque-setup.exe`** (see [windows/README.md](../windows/README.md)) to SSH in, check the OS, pick a UDP port, open **ufw** if it is installed, and deploy this same layout. The GUI installer only supports **Ubuntu 22.04/24.04** and **Debian 12**.
+From Windows you can use **`masque-setup.exe`** (see [windows/README.md](../windows/README.md)) to SSH in, check the OS, pick a UDP port, open **ufw** if it is installed, and deploy this same layout. The GUI installer only supports **Ubuntu 22.04/24.04/26.04** and **Debian 12**.
 
 The server tunnels IP traffic over QUIC + HTTP/3 CONNECT-IP and authenticates clients with mutual TLS (mTLS). From **v1.3** the server also:
 

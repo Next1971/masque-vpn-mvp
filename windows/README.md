@@ -30,7 +30,7 @@ This is a separate app from the VPN client (not in the MSI). It SSHes to a **roo
 
 **Put the Linux server binary next to the EXE:** `vpn-server-linux-amd64` or `vpn-server-linux-arm64` from the [v1.5.1 release](../../releases/tag/v1.5.1) (same folder as `masque-setup.exe`), or pick the file in the UI. The installer does not contain the server.
 
-**Supported OS:** Ubuntu **22.04** or **24.04**, or Debian **12**, with systemd, `apt`, and `/dev/net/tun`. Anything else is refused.
+**Supported OS:** Ubuntu **22.04**, **24.04**, or **26.04**, or Debian **12**, with systemd, `apt`, and `/dev/net/tun`. Anything else is refused.
 
 1. Download `masque-setup.exe` and the matching `vpn-server-linux-*` from [v1.5.1](../../releases/tag/v1.5.1). Keep them in one folder.
 2. Enter SSH host, root password or key, and **Connect and check OS**. If MASQUE is **already installed**, the app **does not reinstall** (no new CA, no new `server.crt`). Port pick / Install are disabled; use **Issue next bundle**.

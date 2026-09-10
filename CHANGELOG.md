@@ -4,6 +4,8 @@ All notable changes to MASQUE VPN are documented here.
 
 ## [Unreleased]
 
+- `masque-setup.exe` accepts Ubuntu **26.04** LTS (in addition to 22.04 / 24.04 and Debian 12).
+
 ## [v1.5.4] - 2026-09-10
 
 **GitHub pre-release.** Library bump (`connect-ip-go` v0.3.0) plus dual-port QUIC dial. Same CONNECT-IP protocol; existing profiles keep working. **New Linux server binary** (first server drop since v1.5.1). v1.5.3 remains **Latest** until this soaks.

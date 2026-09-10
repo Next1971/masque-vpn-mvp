@@ -37,6 +37,9 @@ func TestSupportedRejects(t *testing.T) {
 	if err := Supported(Distro{ID: "ubuntu", VersionID: "24.04"}); err != nil {
 		t.Fatal(err)
 	}
+	if err := Supported(Distro{ID: "ubuntu", VersionID: "26.04"}); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestGoArch(t *testing.T) {
