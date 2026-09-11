@@ -41,7 +41,7 @@ Do not use it if you:
 |---|---|---|---|
 | Manual SSH install | Users who want to inspect every server-side command | Recommended | [Server guide](server/README.md) |
 | Docker Compose | Users familiar with Docker on a dedicated Linux VPS | Experimental | [Docker guide](server/README.md#docker) |
-| Windows VPS Setup Helper | Testers using a disposable VPS | Test pre-release only | [masque-setup.exe](windows/README.md#install-the-server-from-windows-masque-setupexe) |
+| Windows VPS Setup Helper | Testers using a disposable VPS | Test pre-release only Ubuntu 22.04, 24.04, or 26.04, or Debian 12 | [masque-setup.exe](windows/README.md#install-the-server-from-windows-masque-setupexe) |
 
 ## Quick start
 
