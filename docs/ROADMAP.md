@@ -1,6 +1,6 @@
 # Roadmap
 
-> Status snapshot: last updated 2026-09-10. See [CHANGELOG.md](../CHANGELOG.md) for release history.
+> Status snapshot: last updated 2026-09-11. See [CHANGELOG.md](../CHANGELOG.md) for release history.
 
 ## Current status
 
@@ -25,7 +25,8 @@ This is experimental software and has not received an independent security audit
 | **v1.5.3** | Latest: kill switch + TV Connect fix | Client-only vs v1.5.0. Default kill switch **off**. Same protocol. |
 | **v1.5.4** | Pre-release: `connect-ip-go` v0.3.0 + dual-port | New server binary. Clients race `[server]` and optional `alt_port`. DoH not in this tag. |
 | **v1.5.5** | Server install packaging | `install.sh`, SHA256SUMS, Sigstore attestations. Little/no protocol change. |
-| **v1.5.6** | QUIC to the server over IPv6 | AAAA + host-route / exclude so the UDP socket does not loop into TUN. Separate from dual-port. |
+| **(after v1.5.5)** | Android AGP/Gradle bump | Reopen deferred Dependabot [#75](https://github.com/Next1971/masque-vpn/pull/75): AGP **9.4.0** + Gradle wrapper **9.6.0**. Soak on main; **no GitHub pre-release**. |
+| **v1.5.6** | QUIC to the server over IPv6 | AAAA + host-route / exclude so the UDP socket does not loop into TUN. Separate from dual-port. Changelog also notes the AGP/Gradle pair. |
 | **v1.7** | iOS TestFlight | UI refresh ships in whichever build is ready; stores follow the designed UI. |
 | **v1.8** | Phone QR profile import | Installer shows a QR; **phone** clients scan it. TV and Windows stay on file/paste. |
 
@@ -111,9 +112,14 @@ This is experimental software and has not received an independent security audit
 
 - [ ] Server `install.sh`, SHA256SUMS, Sigstore attestations on release artifacts.
 
+## After v1.5.5 (no separate tag)
+
+- [ ] Android toolchain: AGP **9.3.2 → 9.4.0** with Gradle wrapper **9.5.0 → 9.6.0** (deferred [#75](https://github.com/Next1971/masque-vpn/pull/75)). Merge and test phone/TV builds; do not cut a pre-release for this bump.
+
 ## Planned for v1.5.6
 
 - [ ] QUIC to the server over IPv6 (AAAA + host-route bypass). Do not mix with dual-port in the same drop.
+- Mention in the 1.5.6 notes that Android is on AGP 9.4 / Gradle 9.6 (landed after 1.5.5, not a separate GitHub release).
 
 ## Planned for v1.7 (not later than 12 October 2026)
 
