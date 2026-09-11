@@ -24,7 +24,7 @@ This is experimental software and has not received an independent security audit
 |---|---|---|
 | **v1.5.3** | Latest: kill switch + TV Connect fix | Client-only vs v1.5.0. Default kill switch **off**. Same protocol. |
 | **v1.5.4** | Pre-release: `connect-ip-go` v0.3.0 + dual-port | New server binary. Clients race `[server]` and optional `alt_port`. DoH not in this tag. |
-| **v1.5.5** | Short pre-release: server install packaging | `install.sh`, SHA256SUMS, Sigstore attestations. Little/no protocol change. Cut in ~30–40 min; Latest stays v1.5.3. |
+| **v1.5.5** | Short pre-release: server install packaging | `install.sh`, SHA256SUMS, Sigstore attestations. Little/no protocol change.  Latest stays v1.5.3. |
 | **(after v1.5.5)** | Android AGP/Gradle bump | Reopen deferred Dependabot [#75](https://github.com/Next1971/masque-vpn/pull/75): AGP **9.4.0** + Gradle wrapper **9.6.0**. Soak on main; **no GitHub pre-release**. |
 | **v1.5.6** | QUIC to the server over IPv6 | AAAA + host-route / exclude so the UDP socket does not loop into TUN. Separate from dual-port. Changelog also notes the AGP/Gradle pair. |
 | **v1.7** | iOS TestFlight | UI refresh ships in whichever build is ready; stores follow the designed UI. |
