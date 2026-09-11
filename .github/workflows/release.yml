@@ -1,0 +1,79 @@
+name: Release packaging
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to attach Linux artifacts to (e.g. v1.5.5)"
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+jobs:
+  linux-server:
+    name: Linux server + checksums + Sigstore
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.26.1"
+
+      - name: Build Linux server binaries
+        working-directory: android/go-src/masque-vpn
+        run: |
+          mkdir -p "${GITHUB_WORKSPACE}/dist"
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags "-s -w" \
+            -o "${GITHUB_WORKSPACE}/dist/vpn-server-linux-amd64" ./cmd/poc-server
+          CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags "-s -w" \
+            -o "${GITHUB_WORKSPACE}/dist/vpn-server-linux-arm64" ./cmd/poc-server
+
+      - name: Stage install scripts
+        run: |
+          install -m 0755 server/install.sh dist/install.sh
+          install -m 0755 server/scripts/gen-config.sh dist/gen-config.sh
+
+      - name: SHA256SUMS
+        working-directory: dist
+        run: sha256sum vpn-server-linux-amd64 vpn-server-linux-arm64 install.sh gen-config.sh | tee SHA256SUMS
+
+      - name: Sigstore / GitHub artifact attestations
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-path: |
+            dist/vpn-server-linux-amd64
+            dist/vpn-server-linux-arm64
+            dist/install.sh
+            dist/gen-config.sh
+
+      - name: Publish to GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.tag }}" ]; then
+            TAG="${{ inputs.tag }}"
+          else
+            TAG="${GITHUB_REF_NAME}"
+          fi
+          NOTES="release/${TAG}/RELEASE-NOTES.md"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/vpn-server-linux-amd64 dist/vpn-server-linux-arm64 \
+              dist/install.sh dist/gen-config.sh dist/SHA256SUMS --clobber
+          elif [ -f "$NOTES" ]; then
+            gh release create "$TAG" dist/vpn-server-linux-amd64 dist/vpn-server-linux-arm64 \
+              dist/install.sh dist/gen-config.sh dist/SHA256SUMS \
+              --prerelease --title "$TAG (pre-release)" --notes-file "$NOTES"
+          else
+            gh release create "$TAG" dist/vpn-server-linux-amd64 dist/vpn-server-linux-arm64 \
+              dist/install.sh dist/gen-config.sh dist/SHA256SUMS \
+              --prerelease --title "$TAG (pre-release)" --notes "Linux server packaging for $TAG."
+          fi

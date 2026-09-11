@@ -4,7 +4,23 @@ All notable changes to MASQUE VPN are documented here.
 
 ## [Unreleased]
 
-- `masque-setup.exe` accepts Ubuntu **26.04** LTS (in addition to 22.04 / 24.04 and Debian 12).
+## [v1.5.5] - 2026-09-11
+
+**GitHub pre-release.** Server install packaging. Same CONNECT-IP protocol as v1.5.4; existing profiles keep working. v1.5.3 remains **Latest**.
+
+### Added
+
+- Public `server/install.sh`: as root, with `MASQUE_HOST` and `MASQUE_PORT`, downloads the matching Linux server binary and `gen-config.sh` from this GitHub Release, verifies `SHA256SUMS`, and installs `/opt/masque` (same layout as `masque-setup.exe`). If those files are already on disk (Windows helper upload), it skips the download.
+- `SHA256SUMS` on the release. Sigstore / GitHub artifact attestations on the CI-built Linux server binaries and install scripts (`gh attestation verify <file> --repo Next1971/masque-vpn`).
+- `.github/workflows/release.yml` on `v*` tags: Linux amd64/arm64, checksums, attestations, upload.
+
+### Changed
+
+- `masque-setup.exe` accepts Ubuntu **26.04** LTS (in addition to 22.04 / 24.04 and Debian 12). Clients stay **v1.5.4** (no APK/MSI rebuild).
+
+### Notes
+
+- Next on main, no extra pre-release: AGP 9.4 / Gradle 9.6 (Dependabot #75). **v1.5.6** is QUIC over IPv6.
 
 ## [v1.5.4] - 2026-09-10
 
